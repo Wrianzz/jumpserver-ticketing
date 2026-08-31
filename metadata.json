@@ -1,0 +1,6 @@
+{
+  "name": "JumpServer JIT Ticketing Portal",
+  "description": "A custom frontend portal to bypass JumpServer Community Edition limitations, providing Just-In-Time access request functionality.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
