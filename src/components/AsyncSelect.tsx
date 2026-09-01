@@ -25,13 +25,21 @@ interface Option {
 
 interface AsyncSelectProps {
   endpoint: string;
+  method?: 'GET' | 'POST';
   value: string[];
   onChange: (value: string[]) => void;
   placeholder: string;
   emptyText: string;
 }
 
-export function AsyncSelect({ endpoint, value = [], onChange, placeholder, emptyText }: AsyncSelectProps) {
+export function AsyncSelect({
+  endpoint,
+  method = 'GET',
+  value = [],
+  onChange,
+  placeholder,
+  emptyText,
+}: AsyncSelectProps) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,14 +50,29 @@ export function AsyncSelect({ endpoint, value = [], onChange, placeholder, empty
   const fetchOptions = async (query: string) => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`${endpoint}?search=${query}&limit=10`);
+      const response =
+        method === 'POST'
+          ? await apiClient.post(
+              `${endpoint}?search=${encodeURIComponent(query)}&limit=10`,
+              {}
+            )
+          : await apiClient.get(
+              `${endpoint}?search=${encodeURIComponent(query)}&limit=10`
+            );
       // Assuming response.data is an array of objects with id and name
       // JumpServer API returns lists in response.data or response.data.results depending on pagination
-      const results = response.data.results || response.data;
-      const formattedOptions = results.map((item: any) => ({
-        value: item.id,
-        label: item.name || item.hostname || item.id,
-      }));
+      const rawResults = response.data?.results || response.data || [];
+      const results = Array.isArray(rawResults) ? rawResults : [];
+      const formattedOptions = results
+        .map((item: any) => {
+          if (typeof item === 'string') return { value: item, label: item };
+
+          const value = item.id || item.value || item.username || item.name;
+          const label = item.name || item.username || item.hostname || item.label || item.id || item.value;
+
+          return value && label ? { value, label } : null;
+        })
+        .filter(Boolean) as Option[];
       
       // Preserve previously selected options that might not be in the current search results
       // This is a simplified approach, ideally we should fetch details for selected IDs too
