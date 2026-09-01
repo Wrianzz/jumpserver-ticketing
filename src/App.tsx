@@ -14,7 +14,22 @@ import { TicketFlows } from '@/components/TicketFlows';
 import { LogOut, Filter, CheckCircle, Workflow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-function AppLayout({ onLogout, userRole }: { onLogout: () => void, userRole: string | null }) {
+interface AuthUser {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+}
+
+function AppLayout({
+  onLogout,
+  userRole,
+  user,
+}: {
+  onLogout: () => void;
+  userRole: string | null;
+  user: AuthUser | null;
+}) {
   const location = useLocation();
 
   const getPageTitle = () => {
@@ -131,11 +146,19 @@ function AppLayout({ onLogout, userRole }: { onLogout: () => void, userRole: str
             <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3 overflow-hidden">
                 <div className="w-10 h-10 shrink-0 rounded-full bg-[#009688] text-white flex items-center justify-center font-bold shadow-inner text-sm">
-                  {userRole === 'admin' ? 'AD' : 'US'}
+                  {user?.username
+                    ? user.username.substring(0, 2).toUpperCase()
+                    : 'US'}
                 </div>
+                  
                 <div className="flex flex-col overflow-hidden text-left">
-                  <span className="text-sm font-semibold text-slate-900 truncate">{userRole === 'admin' ? 'admin' : 'user'}</span>
-                  <span className="text-xs text-slate-500 truncate">{userRole === 'admin' ? 'admin@jumpserver.local' : 'user@jumpserver.local'}</span>
+                  <span className="text-sm font-semibold text-slate-900 truncate">
+                    {user?.username || 'Unknown User'}
+                  </span>
+                  
+                  <span className="text-xs text-slate-500 truncate">
+                    {user?.email || '-'}
+                  </span>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={onLogout} className="text-slate-400 hover:text-slate-900 hover:bg-slate-200 shrink-0 h-8 w-8 ml-2">
@@ -177,39 +200,113 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isChecking, setIsChecking] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    // Check initial auth state
-    const token = sessionStorage.getItem('jumpserver_token');
-    const role = sessionStorage.getItem('jumpserver_role');
+    const token = sessionStorage.getItem(
+      'jumpserver_token'
+    );
+
+    const role = sessionStorage.getItem(
+      'jumpserver_role'
+    );
+
+    const storedUser = sessionStorage.getItem(
+      'jumpserver_user'
+    );
+
     if (token) {
       setIsAuthenticated(true);
       setUserRole(role);
+
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (error) {
+          console.error(
+            'Failed to parse stored user:',
+            error
+          );
+
+          sessionStorage.removeItem(
+            'jumpserver_user'
+          );
+        }
+      }
     }
+
     setIsChecking(false);
 
-    // Listen for unauthorized events from axios interceptor
     const handleUnauthorized = () => {
+      sessionStorage.removeItem(
+        'jumpserver_token'
+      );
+
+      sessionStorage.removeItem(
+        'jumpserver_role'
+      );
+
+      sessionStorage.removeItem(
+        'jumpserver_user'
+      );
+
       setIsAuthenticated(false);
       setUserRole(null);
+      setUser(null);
     };
 
-    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    window.addEventListener(
+      'auth:unauthorized',
+      handleUnauthorized
+    );
+
     return () => {
-      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+      window.removeEventListener(
+        'auth:unauthorized',
+        handleUnauthorized
+      );
     };
   }, []);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
-    setUserRole(sessionStorage.getItem('jumpserver_role'));
+
+    setUserRole(
+      sessionStorage.getItem('jumpserver_role')
+    );
+
+    const storedUser = sessionStorage.getItem(
+      'jumpserver_user'
+    );
+
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error(
+          'Failed to parse stored user:',
+          error
+        );
+      }
+    }
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('jumpserver_token');
-    sessionStorage.removeItem('jumpserver_role');
+    sessionStorage.removeItem(
+      'jumpserver_token'
+    );
+
+    sessionStorage.removeItem(
+      'jumpserver_role'
+    );
+
+    sessionStorage.removeItem(
+      'jumpserver_user'
+    );
+
     setIsAuthenticated(false);
     setUserRole(null);
+    setUser(null);
   };
 
   if (isChecking) {
@@ -222,7 +319,11 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AppLayout onLogout={handleLogout} userRole={userRole} />
+      <AppLayout
+        onLogout={handleLogout}
+        userRole={userRole}
+        user={user}
+      />
     </BrowserRouter>
   );
 }

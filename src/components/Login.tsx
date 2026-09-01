@@ -17,29 +17,68 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     setError('');
     setLoading(true);
-
+    
     try {
-      const response = await apiClient.post('/api/v1/authentication/auth/', {
-        username,
-        password,
-      });
+      const response = await apiClient.post(
+        '/api/v1/authentication/auth/',
+        {
+          username,
+          password,
+        }
+      );
 
-      const token = response.data.token;
-      
-      if (token) {
-        sessionStorage.setItem('jumpserver_token', token);
-        onLoginSuccess();
-      } else {
-        setError('Login failed: No token received.');
+      const authData = Array.isArray(response.data)
+        ? response.data[0]
+        : response.data;
+
+      const token = authData?.token;
+      const user = authData?.user;
+
+      if (!token || !user) {
+        setError('Login failed: Invalid response from JumpServer.');
+        return;
       }
+
+      const role =
+        user.is_superuser === true ||
+        user.is_org_admin === true
+          ? 'admin'
+          : 'user';
+
+      sessionStorage.setItem(
+        'jumpserver_token',
+        token
+      );
+
+      sessionStorage.setItem(
+        'jumpserver_role',
+        role
+      );
+
+      sessionStorage.setItem(
+        'jumpserver_user',
+        JSON.stringify({
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          email: user.email,
+          is_superuser: user.is_superuser,
+          is_org_admin: user.is_org_admin,
+        })
+      );
+
+      onLoginSuccess();
+
     } catch (error: any) {
-      console.error("Login Error:", error);
-      if (error.response && error.response.status === 401) {
-        setError("Username atau password salah!");
+      console.error('Login Error:', error);
+
+      if (error.response?.status === 401) {
+        setError('Username atau password salah!');
       } else {
-        setError("Gagal terhubung ke server JumpServer.");
+        setError('Gagal terhubung ke server JumpServer.');
       }
     } finally {
       setLoading(false);
