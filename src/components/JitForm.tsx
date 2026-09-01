@@ -29,8 +29,6 @@ const AVAILABLE_ACTIONS = [
   { id: 'connect', label: 'Connect' },
   { id: 'upload', label: 'Upload' },
   { id: 'download', label: 'Download' },
-  { id: 'copy', label: 'Copy' },
-  { id: 'paste', label: 'Paste' },
 ];
 
 export function JitForm() {
@@ -106,7 +104,13 @@ export function JitForm() {
         description: ''
       }));
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to submit ticket');
+      setError(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        (typeof err.response?.data?.details === 'string' ? err.response.data.details : '') ||
+        err.message ||
+        'Failed to submit ticket'
+      );
     } finally {
       setLoading(false);
     }
@@ -182,6 +186,7 @@ export function JitForm() {
                 <div className="w-full">
                   <AsyncSelect 
                     endpoint="/api/v1/accounts/accounts/username-suggestions/"
+                    method="POST"
                     placeholder="Input (Enter to continue)"
                     emptyText="No accounts found."
                     value={formData.specifiedAccount}
