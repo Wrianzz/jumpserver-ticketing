@@ -19,18 +19,21 @@ app.use((req, _res, next) => {
   next();
 });
 
+type JumpServerRelation = { id: string };
+
 type TicketRequestBody = {
   title?: string;
-  nodeIds?: string[];
-  assetIds?: string[];
-  accounts?: string[];
-  actions?: string[];
-  dateStart?: string;
-  dateExpired?: string;
+  org_id?: string;
+  apply_nodes?: JumpServerRelation[];
+  apply_assets?: JumpServerRelation[];
+  apply_accounts?: string[];
+  apply_actions?: string[];
+  apply_date_start?: string;
+  apply_date_expired?: string;
   comment?: string;
 };
 
-const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download']);
+const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download', 'copy', 'paste']);
 
 function getBearerToken(req: Request): string | null {
   const authorization = req.header('authorization');
@@ -108,12 +111,13 @@ app.post(
 
       const {
         title,
-        nodeIds = [],
-        assetIds = [],
-        accounts = ['@ALL'],
-        actions = ['connect'],
-        dateStart,
-        dateExpired,
+        org_id,
+        apply_nodes = [],
+        apply_assets = [],
+        apply_accounts = ['@ALL'],
+        apply_actions = ['connect'],
+        apply_date_start,
+        apply_date_expired,
         comment = '',
       } = req.body;
 
@@ -124,22 +128,22 @@ app.post(
         });
       }
 
-      if (nodeIds.length === 0 && assetIds.length === 0) {
+      if (apply_nodes.length === 0 && apply_assets.length === 0) {
         return res.status(400).json({
           success: false,
           message: 'Select at least one node or asset',
         });
       }
 
-      if (!dateStart || !dateExpired) {
+      if (!apply_date_start || !apply_date_expired) {
         return res.status(400).json({
           success: false,
           message: 'Start and expiry dates are required',
         });
       }
 
-      const startDate = new Date(dateStart);
-      const expiredDate = new Date(dateExpired);
+      const startDate = new Date(apply_date_start);
+      const expiredDate = new Date(apply_date_expired);
 
       if (
         Number.isNaN(startDate.getTime()) ||
@@ -158,7 +162,7 @@ app.post(
         });
       }
 
-      const invalidActions = actions.filter(
+      const invalidActions = apply_actions.filter(
         (action) => !ALLOWED_ACTIONS.has(action)
       );
 
@@ -171,17 +175,24 @@ app.post(
 
       const token = getBearerToken(req)!;
 
+      // Keep the portal contract identical to the JumpServer ticket API.
+      // org_id is pinned server-side unless the client sends the same org.
       const jumpServerPayload = {
         title: title.trim(),
-        org_id: JUMPSERVER_ORG_ID,
-        apply_nodes: nodeIds.map((id) => ({ id })),
-        apply_assets: assetIds.map((id) => ({ id })),
-        apply_accounts: accounts,
-        apply_actions: actions,
-        apply_date_start: formatJumpServerDate(dateStart),
-        apply_date_expired: formatJumpServerDate(dateExpired),
+        org_id: org_id || JUMPSERVER_ORG_ID,
+        apply_nodes,
+        apply_assets,
+        apply_accounts,
+        apply_actions,
+        apply_date_start,
+        apply_date_expired,
         comment: comment.trim(),
       };
+
+      console.log(
+        'Forwarding JumpServer ticket payload:',
+        JSON.stringify(jumpServerPayload)
+      );
 
       const response = await axios.post(
         `${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/open/`,
