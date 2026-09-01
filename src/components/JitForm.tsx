@@ -69,28 +69,31 @@ export function JitForm() {
     setSuccess(false);
 
     try {
-        // Construct the exact required JSON payload structure
-      const payload: any = {
-        name: formData.name,
-        assets: formData.asset || [],
-        nodes: formData.node || [],
-        accounts: formData.accountType === 'all' 
-          ? ['@ALL'] 
-          : formData.accountType === 'specified' && formData.specifiedAccount.length > 0
-            ? formData.specifiedAccount 
-            : [],
-        is_active: true,
-        virtual_accounts: formData.virtualAccounts,
-        virtual_account_type: formData.virtualAccounts ? formData.virtualAccountType : undefined,
-        // Format: YYYY-MM-DD HH:mm:ss +0700
-        date_start: format(new Date(formData.dateStart), "yyyy-MM-dd HH:mm:ss xxxx"),
-        date_expired: format(new Date(formData.dateExpired), "yyyy-MM-dd HH:mm:ss xxxx"),
+      const payload = {
+        title: formData.name.trim(),
+        nodeIds: formData.node,
+        assetIds: formData.asset,
+        accounts:
+          formData.accountType === 'all'
+            ? ['@ALL']
+            : formData.accountType === 'specified'
+              ? formData.specifiedAccount
+              : [],
         actions: formData.actions,
+        // Send an ISO timestamp with the browser's timezone offset so the
+        // backend can convert it safely to JumpServer's required format.
+        dateStart: format(
+          new Date(formData.dateStart),
+          "yyyy-MM-dd'T'HH:mm:ssxxx"
+        ),
+        dateExpired: format(
+          new Date(formData.dateExpired),
+          "yyyy-MM-dd'T'HH:mm:ssxxx"
+        ),
+        comment: formData.description,
       };
 
-      // In some JumpServer versions, this is /api/v1/tickets/asset-tickets/
-      // or /api/v1/perms/asset-permissions/
-      await apiClient.post('/api/v1/tickets/asset-tickets/', payload);
+      await apiClient.post('/portal-api/tickets', payload);
       setSuccess(true);
       
       // Optionally reset form
@@ -300,7 +303,7 @@ export function JitForm() {
               className="px-6 py-2.5 rounded-lg text-sm font-semibold border border-slate-300 text-slate-600 bg-white hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-px active:scale-95"
               onClick={() => {
                 setFormData({
-                  name: '', node: '', asset: '', accountType: 'all', specifiedAccount: '', virtualAccounts: false, virtualAccountType: 'manual', actions: ['connect'], dateStart: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"), dateExpired: format(new Date(Date.now() + 86400000), "yyyy-MM-dd'T'HH:mm:ss"), description: ''
+                  name: '', node: [], asset: [], accountType: 'all', specifiedAccount: [], virtualAccounts: false, virtualAccountType: 'manual', actions: ['connect'], dateStart: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"), dateExpired: format(new Date(Date.now() + 86400000), "yyyy-MM-dd'T'HH:mm:ss"), description: ''
                 });
                 setError('');
                 setSuccess(false);
@@ -311,7 +314,7 @@ export function JitForm() {
             <button 
               type="submit" 
               className="px-8 py-2.5 rounded-lg text-sm font-semibold bg-[#009688] text-white hover:bg-[#00796B] hover:shadow-lg hover:shadow-[#009688]/30 transition-all duration-200 cursor-pointer hover:-translate-y-px active:scale-95 flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none"
-              disabled={loading || (!formData.node && !formData.asset)}
+              disabled={loading || (formData.node.length === 0 && formData.asset.length === 0)}
             >
               {loading ? (
                 <>
