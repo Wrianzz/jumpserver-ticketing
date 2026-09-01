@@ -31,7 +31,7 @@ type TicketRequestBody = {
   comment?: string;
 };
 
-const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download', 'copy', 'paste', 'delete', 'share']);
+const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download', 'copy', 'paste']);
 
 function getBearerToken(req: Request): string | null {
   const authorization = req.header('authorization');
