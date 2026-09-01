@@ -15,6 +15,11 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
+        '/portal-api': {
+          target: process.env.VITE_PORTAL_API_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          secure: false,
+        },
         '/api': {
           target: process.env.VITE_JUMPSERVER_URL || 'http://192.168.56.100',
           changeOrigin: true,
