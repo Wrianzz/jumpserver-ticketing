@@ -29,7 +29,13 @@ const AVAILABLE_ACTIONS = [
   { id: 'connect', label: 'Connect' },
   { id: 'upload', label: 'Upload' },
   { id: 'download', label: 'Download' },
+  { id: 'copy', label: 'Copy' },
+  { id: 'paste', label: 'Paste' },
 ];
+
+const JUMPSERVER_ORG_ID =
+  import.meta.env.VITE_JUMPSERVER_ORG_ID ||
+  '00000000-0000-0000-0000-000000000002';
 
 export function JitForm() {
   const [loading, setLoading] = useState(false);
@@ -67,28 +73,29 @@ export function JitForm() {
     setSuccess(false);
 
     try {
+      // Deliberately match JumpServer's create-ticket payload 1:1 so the
+      // browser payload is easy to compare with a successful API request.
       const payload = {
         title: formData.name.trim(),
-        nodeIds: formData.node,
-        assetIds: formData.asset,
-        accounts:
+        org_id: JUMPSERVER_ORG_ID,
+        apply_nodes: formData.node.map((id) => ({ id })),
+        apply_assets: formData.asset.map((id) => ({ id })),
+        apply_accounts:
           formData.accountType === 'all'
             ? ['@ALL']
             : formData.accountType === 'specified'
               ? formData.specifiedAccount
               : [],
-        actions: formData.actions,
-        // Send an ISO timestamp with the browser's timezone offset so the
-        // backend can convert it safely to JumpServer's required format.
-        dateStart: format(
+        apply_actions: formData.actions,
+        apply_date_start: format(
           new Date(formData.dateStart),
-          "yyyy-MM-dd'T'HH:mm:ssxxx"
+          'yyyy/MM/dd HH:mm:ss xxxx'
         ),
-        dateExpired: format(
+        apply_date_expired: format(
           new Date(formData.dateExpired),
-          "yyyy-MM-dd'T'HH:mm:ssxxx"
+          'yyyy/MM/dd HH:mm:ss xxxx'
         ),
-        comment: formData.description,
+        comment: formData.description.trim(),
       };
 
       await apiClient.post('/portal-api/tickets', payload);
