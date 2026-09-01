@@ -31,8 +31,6 @@ const AVAILABLE_ACTIONS = [
   { id: 'download', label: 'Download' },
   { id: 'copy', label: 'Copy' },
   { id: 'paste', label: 'Paste' },
-  { id: 'delete', label: 'Delete (SFTP)' },
-  { id: 'share', label: 'Share (Web SSH, Web RDP, Web VNC)' },
 ];
 
 const JUMPSERVER_ORG_ID =
