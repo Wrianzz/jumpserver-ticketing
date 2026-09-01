@@ -31,7 +31,7 @@ type TicketRequestBody = {
   comment?: string;
 };
 
-const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download', 'copy', 'paste', 'all']);
+const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download', 'copy', 'paste', 'delete', 'share']);
 
 function getBearerToken(req: Request): string | null {
   const authorization = req.header('authorization');
@@ -168,13 +168,6 @@ app.post(
         return res.status(400).json({
           success: false,
           message: `Unsupported actions: ${invalidActions.join(', ')}`,
-        });
-      }
-
-      if (apply_actions.includes('all') && apply_actions.length > 1) {
-        return res.status(400).json({
-          success: false,
-          message: 'When using all actions, apply_actions must contain only "all"',
         });
       }
 
