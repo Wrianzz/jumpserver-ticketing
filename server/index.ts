@@ -314,13 +314,13 @@ app.get('/portal-api/tickets', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/portal-api/tickets/:id/close', requireAuth, async (req, res) => {
+app.put('/portal-api/tickets/:id/close', requireAuth, async (req, res) => {
   try {
     if (!JUMPSERVER_URL) {
       return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
     }
 
-    const response = await axios.post(
+    const response = await axios.put(
       `${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/${encodeURIComponent(req.params.id)}/close/`,
       {},
       {
