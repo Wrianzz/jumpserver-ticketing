@@ -19,13 +19,11 @@ app.use((req, _res, next) => {
   next();
 });
 
-type JumpServerRelation = { id: string };
-
 type TicketRequestBody = {
   title?: string;
   org_id?: string;
-  apply_nodes?: JumpServerRelation[];
-  apply_assets?: JumpServerRelation[];
+  apply_nodes?: string[];
+  apply_assets?: string[];
   apply_accounts?: string[];
   apply_actions?: string[];
   apply_date_start?: string;
@@ -33,7 +31,7 @@ type TicketRequestBody = {
   comment?: string;
 };
 
-const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download', 'copy', 'paste']);
+const ALLOWED_ACTIONS = new Set(['connect', 'upload', 'download', 'copy', 'paste', 'all']);
 
 function getBearerToken(req: Request): string | null {
   const authorization = req.header('authorization');
@@ -170,6 +168,30 @@ app.post(
         return res.status(400).json({
           success: false,
           message: `Unsupported actions: ${invalidActions.join(', ')}`,
+        });
+      }
+
+      if (apply_actions.includes('all') && apply_actions.length > 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'When using all actions, apply_actions must contain only "all"',
+        });
+      }
+
+      if (
+        apply_accounts.includes('@ALL') &&
+        apply_accounts.length > 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: '@ALL cannot be combined with other accounts',
+        });
+      }
+
+      if (apply_accounts.includes('@SPEC') && apply_accounts.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: '@SPEC must be followed by at least one specified account',
         });
       }
 
