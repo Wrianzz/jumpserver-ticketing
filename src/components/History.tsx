@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, RotateCw, Plus, ChevronDown, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import apiClient from '@/lib/axios';
 
 type Ticket = {
   id: string;
@@ -47,14 +48,13 @@ export function History() {
       const params = new URLSearchParams();
       if (selectedStates.length) params.set('states', selectedStates.join(','));
 
-      const response = await fetch(
-        `/portal-api/tickets${params.toString() ? `?${params.toString()}` : ''}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const response = await apiClient.get(
+        `/portal-api/tickets${params.toString() ? `?${params.toString()}` : ''}`
       );
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Failed to load request history');
+      if (!data?.success) {
+        throw new Error(data?.message || 'Failed to load request history');
       }
 
       setTickets(data.tickets || []);
@@ -97,14 +97,11 @@ export function History() {
     setError('');
 
     try {
-      const response = await fetch(`/portal-api/tickets/${ticket.id}/close`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
+      const response = await apiClient.post(`/portal-api/tickets/${ticket.id}/close`);
+      const data = response.data;
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Failed to cancel ticket');
+      if (!data?.success) {
+        throw new Error(data?.message || 'Failed to cancel ticket');
       }
 
       await loadTickets();
