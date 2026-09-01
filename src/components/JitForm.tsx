@@ -76,20 +76,25 @@ export function JitForm() {
 
     try {
       // Match the native JumpServer payload exactly.
-      // Virtual account modes override the regular account selection.
+      // Regular and virtual account modes can coexist in the same request.
       const virtualAccountMarkers: Record<string, string> = {
         manual: '@INPUT',
         same: '@USER',
         anonymous: '@ANON',
       };
 
-      const applyAccounts = formData.virtualAccounts
-        ? [virtualAccountMarkers[formData.virtualAccountType]]
-        : formData.accountType === 'all'
+      const regularAccounts =
+        formData.accountType === 'all'
           ? ['@ALL']
           : formData.accountType === 'specified'
             ? ['@SPEC', ...formData.specifiedAccount]
             : [];
+
+      const virtualAccounts = formData.virtualAccounts
+        ? [virtualAccountMarkers[formData.virtualAccountType]]
+        : [];
+
+      const applyAccounts = [...regularAccounts, ...virtualAccounts];
 
       const payload = {
         org_id: JUMPSERVER_ORG_ID,
