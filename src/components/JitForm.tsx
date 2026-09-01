@@ -31,6 +31,8 @@ const AVAILABLE_ACTIONS = [
   { id: 'download', label: 'Download' },
   { id: 'copy', label: 'Copy' },
   { id: 'paste', label: 'Paste' },
+  { id: 'delete', label: 'Delete' },
+  { id: 'share', label: 'Share' },
 ];
 
 const JUMPSERVER_ORG_ID =
@@ -73,9 +75,6 @@ export function JitForm() {
     setSuccess(false);
 
     try {
-      const allActionsSelected =
-        formData.actions.length === AVAILABLE_ACTIONS.length;
-
       // Match the native JumpServer payload exactly.
       const payload = {
         org_id: JUMPSERVER_ORG_ID,
@@ -86,7 +85,7 @@ export function JitForm() {
             : formData.accountType === 'specified'
               ? ['@SPEC', ...formData.specifiedAccount]
               : [],
-        apply_actions: allActionsSelected ? ['all'] : formData.actions,
+        apply_actions: formData.actions,
         apply_date_start: new Date(formData.dateStart).toISOString(),
         apply_date_expired: new Date(formData.dateExpired).toISOString(),
         apply_nodes: formData.node,
