@@ -73,28 +73,24 @@ export function JitForm() {
     setSuccess(false);
 
     try {
-      // Deliberately match JumpServer's create-ticket payload 1:1 so the
-      // browser payload is easy to compare with a successful API request.
+      const allActionsSelected =
+        formData.actions.length === AVAILABLE_ACTIONS.length;
+
+      // Match the native JumpServer payload exactly.
       const payload = {
-        title: formData.name.trim(),
         org_id: JUMPSERVER_ORG_ID,
-        apply_nodes: formData.node.map((id) => ({ id })),
-        apply_assets: formData.asset.map((id) => ({ id })),
+        apply_assets: formData.asset,
         apply_accounts:
           formData.accountType === 'all'
             ? ['@ALL']
             : formData.accountType === 'specified'
-              ? formData.specifiedAccount
+              ? ['@SPEC', ...formData.specifiedAccount]
               : [],
-        apply_actions: formData.actions,
-        apply_date_start: format(
-          new Date(formData.dateStart),
-          'yyyy/MM/dd HH:mm:ss xxxx'
-        ),
-        apply_date_expired: format(
-          new Date(formData.dateExpired),
-          'yyyy/MM/dd HH:mm:ss xxxx'
-        ),
+        apply_actions: allActionsSelected ? ['all'] : formData.actions,
+        apply_date_start: new Date(formData.dateStart).toISOString(),
+        apply_date_expired: new Date(formData.dateExpired).toISOString(),
+        apply_nodes: formData.node,
+        title: formData.name.trim(),
         comment: formData.description.trim(),
       };
 
