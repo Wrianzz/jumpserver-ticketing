@@ -3,8 +3,6 @@ import axios from 'axios';
 
 // Create an Axios instance
 const apiClient = axios.create({
-  // Use Vite proxy in development to bypass CORS, or the direct URL in production
-  baseURL: import.meta.env.VITE_API_BASE_URL || '', 
   headers: {
     'Content-Type': 'application/json',
   },

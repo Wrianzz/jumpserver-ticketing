@@ -21,17 +21,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
 
     try {
-      // DUMMY ACCOUNT BYPASS
-      // Simulate network request
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      const token = 'dummy_token_' + Date.now();
-      const role = username === 'dummy_admin' ? 'admin' : 'user';
-      sessionStorage.setItem('jumpserver_token', token);
-      sessionStorage.setItem('jumpserver_role', role);
-      onLoginSuccess();
-      
-      /* Original logic:
       const response = await apiClient.post('/api/v1/authentication/auth/', {
         username,
         password,
@@ -45,9 +34,13 @@ export function Login({ onLoginSuccess }: LoginProps) {
       } else {
         setError('Login failed: No token received.');
       }
-      */
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'An error occurred during login');
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      if (error.response && error.response.status === 401) {
+        setError("Username atau password salah!");
+      } else {
+        setError("Gagal terhubung ke server JumpServer.");
+      }
     } finally {
       setLoading(false);
     }
