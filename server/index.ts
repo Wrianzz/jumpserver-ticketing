@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
 import axios, { AxiosError } from 'axios';
 
@@ -12,6 +13,11 @@ const JUMPSERVER_TIMEZONE_OFFSET =
   process.env.JUMPSERVER_TIMEZONE_OFFSET || '+0700';
 
 app.use(express.json({ limit: '1mb' }));
+
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
 type TicketRequestBody = {
   title?: string;
@@ -96,7 +102,7 @@ app.post(
       if (!JUMPSERVER_URL) {
         return res.status(500).json({
           success: false,
-          message: 'JUMPSERVER_URL is not configured on the backend',
+          message: 'JUMPSERVER_URL is not configured on the backend. Check .env and restart npm run server.',
         });
       }
 
@@ -206,6 +212,7 @@ app.post(
           success: false,
           message: 'JumpServer rejected the ticket request',
           details: axiosError.response.data,
+          upstreamStatus: axiosError.response.status,
         });
       }
 
@@ -221,4 +228,6 @@ app.post(
 
 app.listen(PORT, () => {
   console.log(`JumpServer Ticketing backend listening on port ${PORT}`);
+  console.log(`JumpServer URL: ${JUMPSERVER_URL || '(NOT CONFIGURED)'}`);
+  console.log(`JumpServer org: ${JUMPSERVER_ORG_ID}`);
 });
