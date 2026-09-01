@@ -252,6 +252,101 @@ app.post(
   }
 );
 
+
+type TicketState = 'pending' | 'approved' | 'rejected';
+
+function getJumpServerHeaders(req: Request) {
+  const token = getBearerToken(req)!;
+  return {
+    Authorization: `Bearer ${token}`,
+    'X-JMS-ORG': JUMPSERVER_ORG_ID,
+  };
+}
+
+app.get('/portal-api/tickets', requireAuth, async (req, res) => {
+  try {
+    if (!JUMPSERVER_URL) {
+      return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
+    }
+
+    const states = String(req.query.states || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value): value is TicketState =>
+        ['pending', 'approved', 'rejected'].includes(value)
+      );
+
+    const response = await axios.get(
+      `${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/`,
+      {
+        headers: getJumpServerHeaders(req),
+        timeout: 15000,
+      }
+    );
+
+    const raw = response.data;
+    const tickets = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.results)
+        ? raw.results
+        : [];
+
+    const filtered = states.length
+      ? tickets.filter((ticket: any) => states.includes(ticket?.state?.value))
+      : tickets;
+
+    return res.json({
+      success: true,
+      count: typeof raw?.count === 'number' ? raw.count : filtered.length,
+      tickets: filtered,
+    });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      return res.status(axiosError.response.status).json({
+        success: false,
+        message: 'Failed to load request history from JumpServer',
+        details: axiosError.response.data,
+      });
+    }
+    console.error('List tickets error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to load request history' });
+  }
+});
+
+app.post('/portal-api/tickets/:id/close', requireAuth, async (req, res) => {
+  try {
+    if (!JUMPSERVER_URL) {
+      return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
+    }
+
+    const response = await axios.post(
+      `${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/${encodeURIComponent(req.params.id)}/close/`,
+      {},
+      {
+        headers: {
+          ...getJumpServerHeaders(req),
+          'Content-Type': 'application/json',
+        },
+        timeout: 15000,
+      }
+    );
+
+    return res.json({ success: true, ticket: response.data });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      return res.status(axiosError.response.status).json({
+        success: false,
+        message: 'JumpServer rejected the cancel request',
+        details: axiosError.response.data,
+      });
+    }
+    console.error('Cancel ticket error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to cancel ticket' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`JumpServer Ticketing backend listening on port ${PORT}`);
   console.log(`JumpServer URL: ${JUMPSERVER_URL || '(NOT CONFIGURED)'}`);
