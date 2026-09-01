@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, RotateCw, Plus, ChevronDown, X } from 'lucide-react';
+import { Search, RotateCw, Plus, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import apiClient from '@/lib/axios';
 
@@ -16,6 +16,8 @@ type Ticket = {
   applicant?: string;
   date_created?: string;
 };
+
+const PAGE_SIZE = 25;
 
 const FILTERS = [
   { value: 'pending', label: 'Pending approval' },
@@ -36,6 +38,7 @@ export function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadTickets = async () => {
     const token = sessionStorage.getItem('jumpserver_token');
@@ -87,6 +90,16 @@ export function History() {
         .some((value) => String(value).toLowerCase().includes(keyword))
     );
   }, [tickets, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleTickets.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, visibleTickets.length);
+  const paginatedTickets = visibleTickets.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedStates.join(',')]);
 
   const toggleState = (state: string) => {
     setSelectedStates((current) =>
@@ -194,7 +207,7 @@ export function History() {
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading request history...</td></tr>
               ) : visibleTickets.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No requests found.</td></tr>
-              ) : visibleTickets.map((ticket) => {
+              ) : paginatedTickets.map((ticket) => {
                 const state = ticket.state?.value || '';
                 const canCancel = state === 'pending';
                 return (
@@ -229,8 +242,42 @@ export function History() {
           </table>
         </div>
 
-        <div className="p-4 border-t border-slate-100 mt-auto text-sm text-slate-600">
-          Total {visibleTickets.length}
+        <div className="flex flex-col gap-3 p-4 border-t border-slate-100 mt-auto sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-600">
+            {visibleTickets.length === 0
+              ? 'Total 0'
+              : `Showing ${pageStart + 1}-${pageEnd} of ${visibleTickets.length}`}
+          </div>
+
+          {visibleTickets.length > PAGE_SIZE && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+
+              <span className="min-w-24 text-center text-sm text-slate-600">
+                Page {safeCurrentPage} of {totalPages}
+              </span>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                aria-label="Next page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
