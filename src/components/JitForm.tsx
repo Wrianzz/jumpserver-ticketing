@@ -76,15 +76,25 @@ export function JitForm() {
 
     try {
       // Match the native JumpServer payload exactly.
+      // Virtual account modes override the regular account selection.
+      const virtualAccountMarkers: Record<string, string> = {
+        manual: '@INPUT',
+        same: '@USER',
+        anonymous: '@ANON',
+      };
+
+      const applyAccounts = formData.virtualAccounts
+        ? [virtualAccountMarkers[formData.virtualAccountType]]
+        : formData.accountType === 'all'
+          ? ['@ALL']
+          : formData.accountType === 'specified'
+            ? ['@SPEC', ...formData.specifiedAccount]
+            : [];
+
       const payload = {
         org_id: JUMPSERVER_ORG_ID,
         apply_assets: formData.asset,
-        apply_accounts:
-          formData.accountType === 'all'
-            ? ['@ALL']
-            : formData.accountType === 'specified'
-              ? ['@SPEC', ...formData.specifiedAccount]
-              : [],
+        apply_accounts: applyAccounts,
         apply_actions: formData.actions,
         apply_date_start: new Date(formData.dateStart).toISOString(),
         apply_date_expired: new Date(formData.dateExpired).toISOString(),
