@@ -97,7 +97,7 @@ export function History() {
     setError('');
 
     try {
-      const response = await apiClient.post(`/portal-api/tickets/${ticket.id}/close`);
+      const response = await apiClient.put(`/portal-api/tickets/${ticket.id}/close`);
       const data = response.data;
 
       if (!data?.success) {
