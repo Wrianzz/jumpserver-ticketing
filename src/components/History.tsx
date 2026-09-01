@@ -72,12 +72,11 @@ export function History() {
   const visibleTickets = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
 
-    // Tickets cancelled through the portal are returned by JumpServer as closed.
-    // They are intentionally hidden from Request History.
+    // JumpServer uses status.value = "closed" for multiple final states,
+    // including approved and rejected tickets. Only hide tickets whose
+    // actual state is "closed" (cancelled tickets).
     const activeTickets = tickets.filter(
-      (ticket) =>
-        ticket.state?.value !== 'closed' &&
-        ticket.status?.value !== 'closed'
+      (ticket) => ticket.state?.value !== 'closed'
     );
 
     if (!keyword) return activeTickets;
