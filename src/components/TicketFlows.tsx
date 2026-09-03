@@ -86,7 +86,6 @@ export function TicketFlows() {
   const loadFlow = async () => {
     setLoadingFlow(true);
     setError('');
-    setSuccess('');
 
     try {
       const response = await apiClient.get(`/api/v1/tickets/flows/?type=${FLOW_TYPE}`);
@@ -156,8 +155,6 @@ export function TicketFlows() {
         }
 
         if (target === 'attribute') {
-          // Preserve the existing JumpServer attribute rule because this UI
-          // does not expose the attribute editor yet.
           if (existingRule?.type === 'attrs') return existingRule;
           throw new Error('Filter by attribute belum didukung oleh editor ini.');
         }
@@ -223,7 +220,6 @@ export function TicketFlows() {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden flex-1">
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
         <div className="p-8 flex flex-col gap-10 overflow-y-auto">
-          {/* Basic Section */}
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <h3 className="text-base font-semibold text-slate-800">Basic</h3>
@@ -248,7 +244,6 @@ export function TicketFlows() {
             </div>
           </div>
 
-          {/* Approval Level Section */}
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <h3 className="text-base font-semibold text-slate-800">Approval level</h3>
@@ -268,21 +263,14 @@ export function TicketFlows() {
                         ? 'border-[#009688]'
                         : 'border-slate-300 group-hover:border-[#009688]'
                     )}>
-                      {formData.approveLevel === level && (
-                        <div className="w-2 h-2 rounded-full bg-[#009688]" />
-                      )}
+                      {formData.approveLevel === level && <div className="w-2 h-2 rounded-full bg-[#009688]" />}
                     </div>
-                    <span className="text-sm text-slate-700">
-                      {level === 1 ? 'One level' : 'Two level'}
-                    </span>
+                    <span className="text-sm text-slate-700">{level === 1 ? 'One level' : 'Two level'}</span>
                     <input
                       type="radio"
                       className="hidden"
                       checked={formData.approveLevel === level}
-                      onChange={() => setFormData(prev => ({
-                        ...prev,
-                        approveLevel: level as 1 | 2,
-                      }))}
+                      onChange={() => setFormData(prev => ({ ...prev, approveLevel: level as 1 | 2 }))}
                     />
                   </label>
                 ))}
@@ -293,11 +281,8 @@ export function TicketFlows() {
               </label>
 
               <div className="flex flex-col gap-4">
-                {/* 1 Level Approval Box */}
                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">
-                    1 Level approval
-                  </div>
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">1 Level approval</div>
                   <div className="p-5 flex flex-col gap-4">
                     <div className="flex flex-wrap items-center gap-6">
                       {[
@@ -308,13 +293,9 @@ export function TicketFlows() {
                         <label key={`level1-${target}`} className="flex items-center gap-2 cursor-pointer group">
                           <div className={cn(
                             'w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 group-active:scale-90',
-                            formData.level1Target === target
-                              ? 'border-[#009688]'
-                              : 'border-slate-300 group-hover:border-[#009688]'
+                            formData.level1Target === target ? 'border-[#009688]' : 'border-slate-300 group-hover:border-[#009688]'
                           )}>
-                            {formData.level1Target === target && (
-                              <div className="w-2 h-2 rounded-full bg-[#009688]" />
-                            )}
+                            {formData.level1Target === target && <div className="w-2 h-2 rounded-full bg-[#009688]" />}
                           </div>
                           <span className="text-sm text-slate-700">{label}</span>
                           <input
@@ -337,19 +318,14 @@ export function TicketFlows() {
                       />
                     )}
                     {formData.level1Target === 'attribute' && (
-                      <p className="text-xs text-slate-500">
-                        Existing attribute rules are preserved. Attribute editing is not exposed here yet.
-                      </p>
+                      <p className="text-xs text-slate-500">Existing attribute rules are preserved. Attribute editing is not exposed here yet.</p>
                     )}
                   </div>
                 </div>
 
-                {/* 2 Level Approval Box */}
                 {formData.approveLevel === 2 && (
                   <div className="border border-slate-200 rounded-lg overflow-hidden bg-white animate-in slide-in-from-top-2 fade-in duration-200">
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">
-                      2 Level approval
-                    </div>
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">2 Level approval</div>
                     <div className="p-5 flex flex-col gap-4">
                       <div className="flex flex-wrap items-center gap-6">
                         {[
@@ -360,13 +336,9 @@ export function TicketFlows() {
                           <label key={`level2-${target}`} className="flex items-center gap-2 cursor-pointer group">
                             <div className={cn(
                               'w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 group-active:scale-90',
-                              formData.level2Target === target
-                                ? 'border-[#009688]'
-                                : 'border-slate-300 group-hover:border-[#009688]'
+                              formData.level2Target === target ? 'border-[#009688]' : 'border-slate-300 group-hover:border-[#009688]'
                             )}>
-                              {formData.level2Target === target && (
-                                <div className="w-2 h-2 rounded-full bg-[#009688]" />
-                              )}
+                              {formData.level2Target === target && <div className="w-2 h-2 rounded-full bg-[#009688]" />}
                             </div>
                             <span className="text-sm text-slate-700">{label}</span>
                             <input
@@ -389,9 +361,7 @@ export function TicketFlows() {
                         />
                       )}
                       {formData.level2Target === 'attribute' && (
-                        <p className="text-xs text-slate-500">
-                          Existing attribute rules are preserved. Attribute editing is not exposed here yet.
-                        </p>
+                        <p className="text-xs text-slate-500">Existing attribute rules are preserved. Attribute editing is not exposed here yet.</p>
                       )}
                     </div>
                   </div>
@@ -403,16 +373,13 @@ export function TicketFlows() {
           {(error || success) && (
             <div className={cn(
               'mx-4 rounded-md border px-4 py-3 text-sm',
-              error
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
             )}>
               {error || success}
             </div>
           )}
         </div>
 
-        {/* Action Buttons in Sticky Footer */}
         <div className="mt-auto bg-slate-50 border-t border-slate-200 p-6 flex justify-end items-center shrink-0">
           <div className="flex gap-3 w-full sm:w-auto justify-end">
             <button
