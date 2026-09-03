@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -118,8 +117,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
     try {
       const response = await apiClient.post(
-        '/api/v1/authentication/mfa/verify/',
+        '/api/v1/authentication/mfa/challenge/',
         {
+          type: 'otp',
           code: otp,
         }
       );
