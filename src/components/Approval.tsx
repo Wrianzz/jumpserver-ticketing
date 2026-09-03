@@ -1,328 +1,68 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Search, RotateCw, ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, X } from 'lucide-react';
+import { Search, RotateCw, ChevronLeft, ChevronRight, MoreHorizontal, X } from 'lucide-react';
+import apiClient from '@/lib/axios';
 
-const MOCK_DATA = [
-  {
-    id: 1,
-    title: 'JIT Request - developer - 202608281559',
-    no: '202608280004',
-    type: 'Apply for asset',
-    state: 'Pending approval',
-    date: '08/28/2026 15:41:12',
-    // Extended data for modal
-    organization: 'DEFAULT',
-    applicant: 'Administrator(admin)',
-    description: 'Automated JIT Ticket Request via API',
-    permissionName: 'Created by ticket (JIT Request - developer - 202608281559-4d77)',
-    applyAccounts: 'All',
-    actions: 'Connect (All protocols), Upload (RDP, SFTP), Download (RDP, SFTP)',
-    dateStart: '2026-08-27 10:02:32',
-    dateExpired: '2026-08-31 07:02:32',
-    asset: 'cptest01(192.168.56.13)'
-  },
-  {
-    id: 2,
-    title: 'Prod DB Access',
-    no: '202608280012',
-    type: 'Apply for node',
-    state: 'Pending approval',
-    date: '08/28/2026 09:12:00',
-    organization: 'DEFAULT',
-    applicant: 'Administrator(admin)',
-    description: 'Manual Request for Database Debugging',
-    permissionName: 'Created by ticket (Prod DB Access)',
-    applyAccounts: 'Specified (admin)',
-    actions: 'Connect (SSH)',
-    dateStart: '2026-08-28 09:15:00',
-    dateExpired: '2026-08-28 11:15:00',
-    asset: 'db-prod-01(10.0.1.55)'
-  }
-];
+type ProcessStep = { state: string; assignees: string[]; processor?: string; approval_level: number; assignees_display?: string[]; processor_display?: string; approval_date?: string };
+type Ticket = {
+  id: string; title: string; serial_num: string; org_id?: string;
+  type?: { value?: string; label?: string };
+  apply_nodes?: { id: string; name: string }[];
+  apply_assets?: { id: string; name: string }[];
+  apply_accounts?: string[];
+  apply_actions?: { value: string; label: string }[];
+  process_map?: ProcessStep[];
+  approval_step?: { value?: number; label?: string };
+  state?: { value?: string; label?: string };
+  status?: { value?: string; label?: string };
+  applicant?: string; org_name?: string; apply_date_start?: string; apply_date_expired?: string; date_created?: string; comment?: string;
+};
+const PAGE_SIZE = 25;
+function stateClass(state?: string) { return state === 'pending' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'; }
 
 export function Approval() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
-  const [selectedTicket, setSelectedTicket] = useState<typeof MOCK_DATA[0] | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]); const [searchTerm, setSearchTerm] = useState(''); const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null); const [processing, setProcessing] = useState<string | null>(null);
+  const currentUserId = useMemo(() => { try { return JSON.parse(sessionStorage.getItem('jumpserver_user') || '{}')?.id || ''; } catch { return ''; } }, []);
 
-  // Handle clicking outside to close dropdown
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setActiveDropdown(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  const loadApprovals = async () => {
+    setLoading(true); setError('');
+    try {
+      const response = await apiClient.get('/portal-api/approvals'); const data = response.data;
+      if (!data?.success) throw new Error(data?.message || 'Failed to load approval requests');
+      setTickets((data.tickets || []).filter((ticket: Ticket) => ticket.state?.value === 'pending' && ticket.process_map?.some((step) => step.state === 'pending' && step.assignees?.includes(currentUserId))));
+    } catch (err) { setError(err instanceof Error ? err.message : 'Failed to load approval requests'); } finally { setLoading(false); }
+  };
+  useEffect(() => { loadApprovals(); }, []); useEffect(() => { setPage(1); }, [searchTerm]);
+  const filtered = useMemo(() => { const q = searchTerm.trim().toLowerCase(); if (!q) return tickets; return tickets.filter((t) => [t.title, t.serial_num, t.applicant].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))); }, [tickets, searchTerm]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); const safePage = Math.min(page, totalPages); const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  return (
-    <div className="flex-1 p-4 sm:p-8 bg-slate-50 overflow-y-auto flex flex-col relative">
-      <div className="flex flex-col gap-4 bg-white rounded-xl shadow-sm border border-slate-200 min-h-[500px]">
-        {/* Toolbar */}
-        <div className="flex items-center justify-end p-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="relative w-64">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Search className="w-4 h-4 text-slate-400" />
-              </div>
-              <Input 
-                type="text" 
-                placeholder="Search" 
-                className="w-full pl-9 pr-8 h-9 text-sm border-slate-200 focus-visible:ring-[#009688]/20 focus-visible:border-[#009688] shadow-none bg-slate-50 rounded-md"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <div className="absolute inset-y-0 right-2 flex items-center">
-                 <span className="text-xs text-slate-400 bg-white border border-slate-200 rounded px-1.5 py-0.5">/</span>
-              </div>
-            </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-500 hover:text-slate-900">
-              <RotateCw className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+  const makePayload = (ticket: Ticket) => ({
+    org_id: ticket.org_id || '00000000-0000-0000-0000-000000000002',
+    apply_nodes: (ticket.apply_nodes || []).map((node) => ({ id: node.id })),
+    apply_assets: (ticket.apply_assets || []).map((asset) => ({ id: asset.id })),
+    apply_accounts: ticket.apply_accounts || [], apply_actions: (ticket.apply_actions || []).map((action) => action.value),
+    apply_date_start: ticket.apply_date_start || '', apply_date_expired: ticket.apply_date_expired || '',
+  });
+  const decide = async (ticket: Ticket, action: 'approve' | 'reject') => {
+    setActiveMenu(null); const label = action === 'approve' ? 'Approve' : 'Reject';
+    if (!window.confirm(`${label} ticket "${ticket.title}"?`)) return;
+    setProcessing(`${ticket.id}:${action}`); setError('');
+    try { const response = await apiClient.put(`/portal-api/approvals/${ticket.id}/${action}`, makePayload(ticket)); if (!response.data?.success) throw new Error(response.data?.message || `Failed to ${action} ticket`); setSelectedTicket(null); await loadApprovals(); }
+    catch (err: any) { setError(err.response?.data?.message || (err instanceof Error ? err.message : `Failed to ${action} ticket`)); }
+    finally { setProcessing(null); }
+  };
 
-        {/* Table */}
-        <div className="overflow-x-auto" style={{ minHeight: '300px' }}>
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50/50 text-slate-600 font-medium border-b border-slate-100">
-              <tr>
-                <th className="px-4 py-3 w-12 text-center">
-                  <Checkbox className="border-slate-300 data-[state=checked]:bg-[#009688] data-[state=checked]:border-[#009688]" />
-                </th>
-                <th className="px-4 py-3 group cursor-pointer hover:bg-slate-100 transition-colors">
-                  <div className="flex items-center gap-2">
-                    Title
-                    <div className="flex flex-col opacity-30 group-hover:opacity-100">
-                      <ChevronDown className="w-2 h-2 rotate-180 -mb-[2px]" />
-                      <ChevronDown className="w-2 h-2" />
-                    </div>
-                  </div>
-                </th>
-                <th className="px-4 py-3 group cursor-pointer hover:bg-slate-100 transition-colors">
-                  <div className="flex items-center gap-2">
-                    No.
-                    <div className="flex flex-col opacity-30 group-hover:opacity-100">
-                      <ChevronDown className="w-2 h-2 rotate-180 -mb-[2px]" />
-                      <ChevronDown className="w-2 h-2" />
-                    </div>
-                  </div>
-                </th>
-                <th className="px-4 py-3 group cursor-pointer hover:bg-slate-100 transition-colors">
-                  <div className="flex items-center gap-2">
-                    Type
-                    <div className="flex flex-col opacity-30 group-hover:opacity-100">
-                      <ChevronDown className="w-2 h-2 rotate-180 -mb-[2px]" />
-                      <ChevronDown className="w-2 h-2" />
-                    </div>
-                  </div>
-                </th>
-                <th className="px-4 py-3 group cursor-pointer hover:bg-slate-100 transition-colors">
-                  <div className="flex items-center gap-2">
-                    State
-                    <div className="flex flex-col opacity-30 group-hover:opacity-100">
-                      <ChevronDown className="w-2 h-2 rotate-180 -mb-[2px]" />
-                      <ChevronDown className="w-2 h-2" />
-                    </div>
-                  </div>
-                </th>
-                <th className="px-4 py-3 group cursor-pointer hover:bg-slate-100 transition-colors">
-                  <div className="flex items-center gap-2">
-                    Date
-                    <div className="flex flex-col opacity-30 group-hover:opacity-100">
-                      <ChevronDown className="w-2 h-2 rotate-180 -mb-[2px]" />
-                      <ChevronDown className="w-2 h-2" />
-                    </div>
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-right">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_DATA.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-center">
-                    <Checkbox className="border-slate-300 data-[state=checked]:bg-[#009688] data-[state=checked]:border-[#009688]" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <a href="#" className="text-[#009688] hover:underline" onClick={(e) => { e.preventDefault(); setSelectedTicket(row); }}>{row.title}</a>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{row.no}</td>
-                  <td className="px-4 py-3 text-slate-700">{row.type}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex px-2 py-0.5 text-xs font-medium bg-yellow-50 text-yellow-600 border border-yellow-200 rounded">
-                      {row.state}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{row.date}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1 relative">
-                      <Button size="sm" className="bg-[#009688] hover:bg-[#00796B] text-white h-7 px-3 text-xs rounded" onClick={() => setSelectedTicket(row)}>
-                        Details
-                      </Button>
-                      
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-7 w-7 p-0 border-[#009688]/30 text-[#009688] hover:bg-[#009688]/10 rounded focus:ring-0"
-                        onClick={() => setActiveDropdown(activeDropdown === row.id ? null : row.id)}
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-
-                      {activeDropdown === row.id && (
-                        <div 
-                          ref={dropdownRef}
-                          className="absolute right-0 top-8 w-32 bg-white rounded-md shadow-lg border border-slate-200 z-10 py-1"
-                        >
-                          <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-all cursor-pointer hover:pl-5">
-                            Accept
-                          </button>
-                          <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-all cursor-pointer hover:pl-5">
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer Pagination */}
-        <div className="flex items-center justify-between p-4 border-t border-slate-100 mt-auto text-sm text-slate-600">
-          <div>Total {MOCK_DATA.length}</div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center border border-slate-200 rounded px-2 py-1 cursor-pointer hover:border-slate-300 hover:shadow-sm hover:-translate-y-px active:scale-95 transition-all duration-200 bg-white">
-              <span className="mr-4">15/page</span>
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            </div>
-            <div className="flex gap-1 ml-2">
-              <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-50 hover:shadow-sm hover:-translate-y-px active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:pointer-events-none">
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button className="w-8 h-8 flex items-center justify-center border border-[#009688] rounded bg-[#009688] text-white font-medium hover:shadow-sm hover:-translate-y-px active:scale-95 transition-all duration-200 cursor-pointer">
-                1
-              </button>
-              <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-50 hover:shadow-sm hover:-translate-y-px active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:pointer-events-none">
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Details Modal */}
-      {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex items-start justify-between p-6 border-b border-slate-100">
-              <h2 className="text-xl font-medium text-slate-800 pr-8 leading-snug">
-                {selectedTicket.applicant}: New Ticket - {selectedTicket.title} ({selectedTicket.type})
-              </h2>
-              <button 
-                onClick={() => setSelectedTicket(null)}
-                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200 cursor-pointer hover:-translate-y-px active:scale-95 p-1 rounded-md"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-8">
-              
-              <div className="flex justify-between items-end border-b border-slate-200 pb-2">
-                <h3 className="font-medium text-slate-800">
-                  You have a new ticket from {selectedTicket.applicant}
-                </h3>
-                <span className="text-xs text-slate-400">16 minutes ago</span>
-              </div>
-
-              {/* Ticket basic info */}
-              <div className="flex flex-col gap-4">
-                <h4 className="font-semibold text-slate-800 mb-2">Ticket basic info</h4>
-                <div className="grid grid-cols-[180px_1fr] gap-y-4 text-sm">
-                  <div className="text-slate-500">Serial number:</div>
-                  <div className="text-slate-800">{selectedTicket.no}</div>
-                  
-                  <div className="text-slate-500">Title:</div>
-                  <div className="text-slate-800">{selectedTicket.title}</div>
-                  
-                  <div className="text-slate-500">Type:</div>
-                  <div className="text-slate-800">{selectedTicket.type}</div>
-                  
-                  <div className="text-slate-500">State:</div>
-                  <div className="text-slate-800">{selectedTicket.state}</div>
-                  
-                  <div className="text-slate-500">Organization:</div>
-                  <div className="text-slate-800">{selectedTicket.organization}</div>
-                  
-                  <div className="text-slate-500">Applicant:</div>
-                  <div className="text-slate-800">{selectedTicket.applicant}</div>
-                  
-                  <div className="text-slate-500">Description:</div>
-                  <div className="text-slate-800">{selectedTicket.description}</div>
-                </div>
-              </div>
-
-              {/* Ticket applied info */}
-              <div className="flex flex-col gap-4 border-t border-slate-200 pt-8">
-                <h4 className="font-semibold text-slate-800 mb-2">Ticket applied info</h4>
-                <div className="grid grid-cols-[180px_1fr] gap-y-4 text-sm">
-                  <div className="text-slate-500">Permission name:</div>
-                  <div className="text-slate-800">{selectedTicket.permissionName}</div>
-                  
-                  <div className="text-slate-500">Apply accounts:</div>
-                  <div className="text-slate-800">{selectedTicket.applyAccounts}</div>
-                  
-                  <div className="text-slate-500">Actions:</div>
-                  <div className="text-slate-800">{selectedTicket.actions}</div>
-                  
-                  <div className="text-slate-500">Date start:</div>
-                  <div className="text-slate-800">{selectedTicket.dateStart}</div>
-                  
-                  <div className="text-slate-500">Date expired:</div>
-                  <div className="text-slate-800">{selectedTicket.dateExpired}</div>
-                  
-                  <div className="text-slate-500">Asset:</div>
-                  <div className="text-slate-800">{selectedTicket.asset}</div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100 bg-slate-50">
-              <Button 
-                variant="outline" 
-                className="border-slate-300 text-slate-700 hover:bg-slate-100 px-6 font-normal"
-                onClick={() => setSelectedTicket(null)}
-              >
-                Reject
-              </Button>
-              <Button 
-                className="bg-[#009688] hover:bg-[#00796B] text-white px-6 font-normal"
-                onClick={() => setSelectedTicket(null)}
-              >
-                Accept
-              </Button>
-            </div>
-
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="flex-1 p-4 sm:p-8 bg-slate-50 overflow-y-auto flex flex-col relative"><div className="flex flex-col gap-4 bg-white rounded-xl shadow-sm border border-slate-200 min-h-[500px]">
+    <div className="flex items-center justify-end p-4 border-b border-slate-100"><div className="flex items-center gap-3"><div className="relative w-64"><div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="w-4 h-4 text-slate-400" /></div><Input placeholder="Search" className="w-full pl-9 pr-8 h-9 text-sm border-slate-200 bg-slate-50 rounded-md" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div><Button variant="ghost" size="icon" onClick={loadApprovals} disabled={loading} className="h-9 w-9"><RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></Button></div></div>
+    {error && <div className="mx-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+    <div className="overflow-x-auto" style={{ minHeight: '300px' }}><table className="w-full text-sm text-left"><thead className="bg-slate-50/50 text-slate-600 font-medium border-b border-slate-100"><tr><th className="px-4 py-3">Title</th><th className="px-4 py-3">No.</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Applicant</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Date</th><th className="px-4 py-3 text-right">Action</th></tr></thead><tbody>
+      {loading ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading approval requests...</td></tr> : pageItems.length === 0 ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No approval requests found.</td></tr> : pageItems.map((ticket) => <tr key={ticket.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="px-4 py-3"><button className="text-[#009688] hover:underline" onClick={() => setSelectedTicket(ticket)}>{ticket.title}</button></td><td className="px-4 py-3 text-slate-700">{ticket.serial_num}</td><td className="px-4 py-3 text-slate-700">{ticket.type?.label || '-'}</td><td className="px-4 py-3 text-slate-700">{ticket.applicant || '-'}</td><td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 text-xs font-medium border rounded ${stateClass(ticket.state?.value)}`}>{ticket.state?.label || 'Pending approval'}</span></td><td className="px-4 py-3 text-slate-700">{ticket.date_created || '-'}</td><td className="px-4 py-3"><div className="flex justify-end gap-1 relative"><Button size="sm" className="bg-[#009688] hover:bg-[#00796B] text-white h-7 px-3 text-xs rounded" onClick={() => setSelectedTicket(ticket)}>Details</Button><Button variant="outline" size="sm" className="h-7 w-7 p-0 border-[#009688]/30 text-[#009688] rounded" onClick={() => setActiveMenu(activeMenu === ticket.id ? null : ticket.id)}><MoreHorizontal className="w-4 h-4" /></Button>{activeMenu === ticket.id && <div className="absolute right-0 top-8 w-32 bg-white rounded-md shadow-lg border border-slate-200 z-10 py-1"><button disabled={!!processing} onClick={() => decide(ticket, 'approve')} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50">Accept</button><button disabled={!!processing} onClick={() => decide(ticket, 'reject')} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50">Reject</button></div>}</div></td></tr>)}
+    </tbody></table></div>
+    <div className="flex items-center justify-between p-4 border-t border-slate-100 mt-auto text-sm text-slate-600"><div>{filtered.length === 0 ? 'Total 0' : `Showing ${(safePage - 1) * PAGE_SIZE + 1}-${Math.min(safePage * PAGE_SIZE, filtered.length)} of ${filtered.length}`}</div><div className="flex items-center gap-2"><span>25/page</span><button disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white disabled:opacity-50"><ChevronLeft className="w-4 h-4" /></button><span className="min-w-16 text-center">Page {safePage} of {totalPages}</span><button disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white disabled:opacity-50"><ChevronRight className="w-4 h-4" /></button></div></div>
+  </div>
+  {selectedTicket && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"><div className="flex items-start justify-between p-6 border-b border-slate-100"><div><h2 className="text-xl font-medium text-slate-800">{selectedTicket.title}</h2><p className="text-sm text-slate-500 mt-1">{selectedTicket.applicant} · {selectedTicket.serial_num}</p></div><button onClick={() => setSelectedTicket(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button></div><div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm"><section><h3 className="font-semibold text-slate-800 mb-3">Ticket basic info</h3><div className="grid grid-cols-[160px_1fr] gap-y-3"><span className="text-slate-500">Organization</span><span>{selectedTicket.org_name || selectedTicket.org_id || '-'}</span><span className="text-slate-500">Type</span><span>{selectedTicket.type?.label || '-'}</span><span className="text-slate-500">Applicant</span><span>{selectedTicket.applicant || '-'}</span><span className="text-slate-500">Comment</span><span>{selectedTicket.comment || '-'}</span></div></section><section className="border-t pt-6"><h3 className="font-semibold text-slate-800 mb-3">Ticket applied info</h3><div className="grid grid-cols-[160px_1fr] gap-y-3"><span className="text-slate-500">Nodes</span><span>{(selectedTicket.apply_nodes || []).map((n) => n.name).join(', ') || '-'}</span><span className="text-slate-500">Assets</span><span>{(selectedTicket.apply_assets || []).map((a) => a.name).join(', ') || '-'}</span><span className="text-slate-500">Accounts</span><span>{(selectedTicket.apply_accounts || []).join(', ') || '-'}</span><span className="text-slate-500">Actions</span><span>{(selectedTicket.apply_actions || []).map((a) => a.label).join(', ') || '-'}</span><span className="text-slate-500">Start</span><span>{selectedTicket.apply_date_start || '-'}</span><span className="text-slate-500">Expired</span><span>{selectedTicket.apply_date_expired || '-'}</span></div></section><section className="border-t pt-6"><h3 className="font-semibold text-slate-800 mb-3">Approval process</h3><div className="space-y-2">{(selectedTicket.process_map || []).map((step) => <div key={step.approval_level} className="flex items-center justify-between border rounded px-3 py-2"><span>Level {step.approval_level}</span><span className="capitalize">{step.state}</span></div>)}</div></section></div><div className="flex justify-end gap-2 p-4 border-t border-slate-100"><Button variant="outline" onClick={() => setSelectedTicket(null)}>Close</Button><Button disabled={!!processing} className="bg-red-500 hover:bg-red-600 text-white" onClick={() => decide(selectedTicket, 'reject')}>Reject</Button><Button disabled={!!processing} className="bg-[#009688] hover:bg-[#00796B] text-white" onClick={() => decide(selectedTicket, 'approve')}>Approve</Button></div></div></div>}
+  </div>;
 }
