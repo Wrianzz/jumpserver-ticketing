@@ -33,6 +33,12 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const authenticate = () =>
+    apiClient.post('/api/v1/authentication/auth/', {
+      username,
+      password,
+    });
+
   const completeLogin = (token: string | undefined, user: JumpServerAuthUser | undefined) => {
     if (!token || !user) {
       setError('Login failed: Invalid response from JumpServer.');
@@ -70,13 +76,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
 
     try {
-      const response = await apiClient.post(
-        '/api/v1/authentication/auth/',
-        {
-          username,
-          password,
-        }
-      );
+      const response = await authenticate();
 
       if (response.data?.error === 'mfa_required') {
         setMfaRequired(true);
@@ -116,7 +116,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
 
     try {
-      const response = await apiClient.post(
+      await apiClient.post(
         '/api/v1/authentication/mfa/challenge/',
         {
           type: 'otp',
@@ -124,11 +124,18 @@ export function Login({ onLoginSuccess }: LoginProps) {
         }
       );
 
-      const { token, user } = extractAuthData(response.data);
+      // JumpServer returns "ok" after a valid MFA challenge. The MFA state is
+      // stored in the same server-side session, so authenticate again to obtain
+      // the API token and user object.
+      const authResponse = await authenticate();
 
-      if (!completeLogin(token, user)) {
-        setError('MFA berhasil diverifikasi, tetapi token login tidak diterima dari JumpServer.');
+      if (authResponse.data?.error === 'mfa_required') {
+        setError('MFA sudah diverifikasi, tetapi sesi autentikasi belum selesai. Silakan coba lagi.');
+        return;
       }
+
+      const { token, user } = extractAuthData(authResponse.data);
+      completeLogin(token, user);
     } catch (error: any) {
       console.error('MFA Verification Error:', error);
 
