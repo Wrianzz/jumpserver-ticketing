@@ -26,6 +26,7 @@ export interface AsyncSelectOption {
 interface AsyncSelectProps {
   endpoint: string;
   method?: 'GET' | 'POST';
+  postBody?: Record<string, unknown>;
   value: string[];
   onChange: (value: string[]) => void;
   placeholder: string;
@@ -36,6 +37,7 @@ interface AsyncSelectProps {
 export function AsyncSelect({
   endpoint,
   method = 'GET',
+  postBody = {},
   value = [],
   onChange,
   placeholder,
@@ -69,13 +71,13 @@ export function AsyncSelect({
       const response =
         method === 'POST'
           ? await apiClient.post(
-              `${endpoint}?search=${encodeURIComponent(query)}&limit=10`,
-              {}
+              endpoint,
+              { ...postBody, username: query },
             )
           : await apiClient.get(
               `${endpoint}?search=${encodeURIComponent(query)}&limit=10`
             );
-      // JumpServer API returns lists in response.data or response.data.results depending on pagination
+      // JumpServer API returns lists in response.data or response.data.results depending on pagination.
       const rawResults = response.data?.results || response.data || [];
       const results = Array.isArray(rawResults) ? rawResults : [];
       const formattedOptions = results
@@ -89,7 +91,7 @@ export function AsyncSelect({
         })
         .filter(Boolean) as AsyncSelectOption[];
       
-      // Preserve previously selected options that might not be in the current search results
+      // Preserve previously selected options that might not be in the current search results.
       setOptions(prevOptions => {
         const newOptions = [...formattedOptions];
         value.forEach(val => {
