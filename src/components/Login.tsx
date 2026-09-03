@@ -9,18 +9,67 @@ interface LoginProps {
   onLoginSuccess: () => void;
 }
 
+interface JumpServerAuthUser {
+  id: string;
+  username: string;
+  name?: string;
+  email?: string;
+  is_superuser?: boolean;
+  is_org_admin?: boolean;
+}
+
+function extractAuthData(data: any) {
+  const authData = Array.isArray(data) ? data[0] : data;
+  return {
+    token: authData?.token || authData?.data?.token,
+    user: authData?.user || authData?.data?.user,
+  };
+}
+
 export function Login({ onLoginSuccess }: LoginProps) {
   const [username, setUsername] = useState('dummy_admin');
   const [password, setPassword] = useState('password123');
+  const [otp, setOtp] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const completeLogin = (token: string | undefined, user: JumpServerAuthUser | undefined) => {
+    if (!token || !user) {
+      setError('Login failed: Invalid response from JumpServer.');
+      return false;
+    }
+
+    const role =
+      user.is_superuser === true ||
+      user.is_org_admin === true
+        ? 'admin'
+        : 'user';
+
+    sessionStorage.setItem('jumpserver_token', token);
+    sessionStorage.setItem('jumpserver_role', role);
+    sessionStorage.setItem(
+      'jumpserver_user',
+      JSON.stringify({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        is_superuser: user.is_superuser,
+        is_org_admin: user.is_org_admin,
+      })
+    );
+
+    onLoginSuccess();
+    return true;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setError('');
     setLoading(true);
-    
+
     try {
       const response = await apiClient.post(
         '/api/v1/authentication/auth/',
@@ -30,59 +79,80 @@ export function Login({ onLoginSuccess }: LoginProps) {
         }
       );
 
-      const authData = Array.isArray(response.data)
-        ? response.data[0]
-        : response.data;
-
-      const token = authData?.token;
-      const user = authData?.user;
-
-      if (!token || !user) {
-        setError('Login failed: Invalid response from JumpServer.');
+      if (response.data?.error === 'mfa_required') {
+        setMfaRequired(true);
+        setOtp('');
         return;
       }
 
-      const role =
-        user.is_superuser === true ||
-        user.is_org_admin === true
-          ? 'admin'
-          : 'user';
-
-      sessionStorage.setItem(
-        'jumpserver_token',
-        token
-      );
-
-      sessionStorage.setItem(
-        'jumpserver_role',
-        role
-      );
-
-      sessionStorage.setItem(
-        'jumpserver_user',
-        JSON.stringify({
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          email: user.email,
-          is_superuser: user.is_superuser,
-          is_org_admin: user.is_org_admin,
-        })
-      );
-
-      onLoginSuccess();
-
+      const { token, user } = extractAuthData(response.data);
+      completeLogin(token, user);
     } catch (error: any) {
       console.error('Login Error:', error);
 
       if (error.response?.status === 401) {
         setError('Username atau password salah!');
       } else {
-        setError('Gagal terhubung ke server JumpServer.');
+        setError(
+          error.response?.data?.detail ||
+          error.response?.data?.msg ||
+          'Gagal terhubung ke server JumpServer.'
+        );
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setError('');
+
+    if (!/^\d{6}$/.test(otp)) {
+      setError('Masukkan kode OTP 6 digit.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await apiClient.post(
+        '/api/v1/authentication/mfa/verify/',
+        {
+          code: otp,
+        }
+      );
+
+      const { token, user } = extractAuthData(response.data);
+
+      if (!completeLogin(token, user)) {
+        setError('MFA berhasil diverifikasi, tetapi token login tidak diterima dari JumpServer.');
+      }
+    } catch (error: any) {
+      console.error('MFA Verification Error:', error);
+
+      const responseData = error.response?.data;
+
+      if (error.response?.status === 401) {
+        setError('Kode OTP salah atau sesi MFA sudah tidak berlaku.');
+      } else {
+        setError(
+          responseData?.detail ||
+          responseData?.msg ||
+          responseData?.error ||
+          'Gagal memverifikasi MFA.'
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setMfaRequired(false);
+    setOtp('');
+    setError('');
   };
 
   return (
@@ -98,51 +168,110 @@ export function Login({ onLoginSuccess }: LoginProps) {
             JumpServer <span className="text-[#009688]">Ticketing Portal</span>
           </CardTitle>
           <CardDescription className="text-slate-500 text-sm">
-            Sign in with your JumpServer credentials
+            {mfaRequired
+              ? 'Verify your identity with your authenticator'
+              : 'Sign in with your JumpServer credentials'}
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin} className="pb-4">
-          <CardContent className="space-y-5 px-8 pt-4">
-            <div className="space-y-1.5 text-left">
-              <Label htmlFor="username" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Username</Label>
-              <Input 
-                id="username" 
-                type="text" 
-                placeholder="Enter your username"
-                className="w-full border-slate-200 rounded-lg px-4 py-2 text-sm focus-visible:ring-2 focus-visible:ring-[#009688]/20 focus-visible:border-[#009688] outline-none shadow-none"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required 
-              />
-            </div>
-            <div className="space-y-1.5 text-left">
-              <Label htmlFor="password" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Password</Label>
-              <Input 
-                id="password" 
-                type="password"
-                placeholder="Enter your password"
-                className="w-full border-slate-200 rounded-lg px-4 py-2 text-sm focus-visible:ring-2 focus-visible:ring-[#009688]/20 focus-visible:border-[#009688] outline-none shadow-none"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required 
-              />
-            </div>
-            {error && (
-              <div className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md border border-red-100">
-                {error}
+
+        {mfaRequired ? (
+          <form onSubmit={handleMfaVerify} className="pb-4">
+            <CardContent className="space-y-5 px-8 pt-4">
+              <div className="rounded-lg border border-teal-100 bg-teal-50 p-4 text-center">
+                <p className="text-sm font-semibold text-slate-800">MFA verification required</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Enter the 6-digit OTP from your authenticator app.
+                </p>
               </div>
-            )}
-          </CardContent>
-          <CardFooter className="px-8 pb-8 pt-4">
-            <button 
-              type="submit" 
-              className="w-full py-2.5 rounded-lg text-sm font-semibold bg-[#009688] text-white hover:bg-[#00796B] shadow-lg shadow-[#009688]/20 transition-all active:scale-95 disabled:opacity-70 disabled:pointer-events-none" 
-              disabled={loading}
-            >
-              {loading ? 'Authenticating...' : 'Sign In'}
-            </button>
-          </CardFooter>
-        </form>
+
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="otp" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Authentication Code
+                </Label>
+                <Input
+                  id="otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  maxLength={6}
+                  className="w-full border-slate-200 rounded-lg px-4 py-3 text-center text-lg tracking-[0.4em] font-semibold focus-visible:ring-2 focus-visible:ring-[#009688]/20 focus-visible:border-[#009688] outline-none shadow-none"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md border border-red-100">
+                  {error}
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-lg text-sm font-semibold bg-[#009688] text-white hover:bg-[#00796B] shadow-lg shadow-[#009688]/20 transition-all active:scale-95 disabled:opacity-70 disabled:pointer-events-none"
+                disabled={loading || otp.length !== 6}
+              >
+                {loading ? 'Verifying...' : 'Verify & Sign In'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBackToLogin}
+                disabled={loading}
+                className="w-full py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+              >
+                Back to Sign In
+              </button>
+            </CardFooter>
+          </form>
+        ) : (
+          <form onSubmit={handleLogin} className="pb-4">
+            <CardContent className="space-y-5 px-8 pt-4">
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="username" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Username</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  className="w-full border-slate-200 rounded-lg px-4 py-2 text-sm focus-visible:ring-2 focus-visible:ring-[#009688]/20 focus-visible:border-[#009688] outline-none shadow-none"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="password" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  className="w-full border-slate-200 rounded-lg px-4 py-2 text-sm focus-visible:ring-2 focus-visible:ring-[#009688]/20 focus-visible:border-[#009688] outline-none shadow-none"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              {error && (
+                <div className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md border border-red-100">
+                  {error}
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="px-8 pb-8 pt-4">
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-lg text-sm font-semibold bg-[#009688] text-white hover:bg-[#00796B] shadow-lg shadow-[#009688]/20 transition-all active:scale-95 disabled:opacity-70 disabled:pointer-events-none"
+                disabled={loading}
+              >
+                {loading ? 'Authenticating...' : 'Sign In'}
+              </button>
+            </CardFooter>
+          </form>
+        )}
       </Card>
     </div>
   );
