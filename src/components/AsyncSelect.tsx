@@ -18,7 +18,7 @@ import {
 import apiClient from '@/lib/axios';
 import { useDebounce } from '@/hooks/use-debounce';
 
-interface Option {
+export interface AsyncSelectOption {
   value: string;
   label: string;
 }
@@ -30,6 +30,7 @@ interface AsyncSelectProps {
   onChange: (value: string[]) => void;
   placeholder: string;
   emptyText: string;
+  initialOptions?: AsyncSelectOption[];
 }
 
 export function AsyncSelect({
@@ -39,13 +40,28 @@ export function AsyncSelect({
   onChange,
   placeholder,
   emptyText,
+  initialOptions = [],
 }: AsyncSelectProps) {
   const [open, setOpen] = useState(false);
-  const [options, setOptions] = useState<Option[]>([]);
+  const [options, setOptions] = useState<AsyncSelectOption[]>(initialOptions);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   
   const debouncedSearch = useDebounce(search, 300);
+
+  useEffect(() => {
+    if (initialOptions.length === 0) return;
+
+    setOptions(prevOptions => {
+      const merged = [...prevOptions];
+      initialOptions.forEach(option => {
+        if (!merged.some(existing => existing.value === option.value)) {
+          merged.push(option);
+        }
+      });
+      return merged;
+    });
+  }, [initialOptions]);
 
   const fetchOptions = async (query: string) => {
     setLoading(true);
@@ -59,7 +75,6 @@ export function AsyncSelect({
           : await apiClient.get(
               `${endpoint}?search=${encodeURIComponent(query)}&limit=10`
             );
-      // Assuming response.data is an array of objects with id and name
       // JumpServer API returns lists in response.data or response.data.results depending on pagination
       const rawResults = response.data?.results || response.data || [];
       const results = Array.isArray(rawResults) ? rawResults : [];
@@ -72,10 +87,9 @@ export function AsyncSelect({
 
           return value && label ? { value, label } : null;
         })
-        .filter(Boolean) as Option[];
+        .filter(Boolean) as AsyncSelectOption[];
       
       // Preserve previously selected options that might not be in the current search results
-      // This is a simplified approach, ideally we should fetch details for selected IDs too
       setOptions(prevOptions => {
         const newOptions = [...formattedOptions];
         value.forEach(val => {
@@ -84,7 +98,6 @@ export function AsyncSelect({
             if (existingOpt) {
               newOptions.push(existingOpt);
             } else {
-              // Add a fallback option if we don't have the label
               newOptions.push({ value: val, label: val });
             }
           }
@@ -93,7 +106,7 @@ export function AsyncSelect({
       });
     } catch (error) {
       console.error('Error fetching options:', error);
-      setOptions([]);
+      setOptions(prevOptions => prevOptions.filter(option => value.includes(option.value)));
     } finally {
       setLoading(false);
     }
@@ -176,7 +189,7 @@ export function AsyncSelect({
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={(currentValue) => {
+                  onSelect={() => {
                     toggleValue(option.value);
                   }}
                 >
