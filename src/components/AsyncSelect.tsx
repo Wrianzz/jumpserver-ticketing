@@ -70,7 +70,7 @@ export function AsyncSelect({
     try {
       const response = method === 'POST'
         ? await apiClient.post(endpoint, { ...postBody, username: query })
-        : await apiClient.get(`${endpoint}?search=${encodeURIComponent(query)}&limit=10`);
+        : await apiClient.get(`${endpoint}${endpoint.includes('?') ? '&' : '?'}search=${encodeURIComponent(query)}&limit=10`);
 
       // The initial request fired when the dropdown opens can finish after a
       // later search request. Ignore stale responses so an old result set
