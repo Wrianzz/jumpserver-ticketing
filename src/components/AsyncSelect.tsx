@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ export function AsyncSelect({
   const [options, setOptions] = useState<AsyncSelectOption[]>(initialOptions);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const requestIdRef = useRef(0);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -63,11 +64,18 @@ export function AsyncSelect({
   }, [initialOptions]);
 
   const fetchOptions = async (query: string) => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
+
     try {
       const response = method === 'POST'
         ? await apiClient.post(endpoint, { ...postBody, username: query })
         : await apiClient.get(`${endpoint}?search=${encodeURIComponent(query)}&limit=10`);
+
+      // The initial request fired when the dropdown opens can finish after a
+      // later search request. Ignore stale responses so an old result set
+      // cannot overwrite the current search results.
+      if (requestId !== requestIdRef.current) return;
 
       const rawResults = response.data?.results || response.data || [];
       const results = Array.isArray(rawResults) ? rawResults : [];
@@ -80,9 +88,6 @@ export function AsyncSelect({
         })
         .filter(Boolean) as AsyncSelectOption[];
 
-      // Search results must replace the previous result set. Keeping the old
-      // options here makes server-side search appear broken when shouldFilter
-      // is disabled, because every old result remains visible.
       const selectedOptions = value
         .filter((val) => !formattedOptions.some((option) => option.value === val))
         .map((val) => {
@@ -92,10 +97,11 @@ export function AsyncSelect({
 
       setOptions([...formattedOptions, ...selectedOptions]);
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       console.error('Error fetching options:', error);
       setOptions((prevOptions) => prevOptions.filter((option) => value.includes(option.value)));
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   };
 
