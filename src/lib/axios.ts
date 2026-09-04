@@ -8,22 +8,30 @@ const apiClient = axios.create({
   },
 });
 
-// Add a request interceptor to append the Bearer token
+// Add the Bearer token and authenticated portal user id to requests
 apiClient.interceptors.request.use(
   (config) => {
-    // Extract token from sessionStorage (or localStorage based on preference)
     const token = sessionStorage.getItem('jumpserver_token');
-    
+    const storedUser = sessionStorage.getItem('jumpserver_user');
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (storedUser && config.headers) {
+      try {
+        const user = JSON.parse(storedUser);
+        if (user?.id) config.headers['X-Portal-User-ID'] = user.id;
+      } catch {
+        // Ignore malformed session user data; the backend will reject protected routes.
+      }
     }
 
     // --- DUMMY MODE MOCKING ---
     if (token?.startsWith('dummy_')) {
       config.adapter = async (config) => {
-        // Mock network delay
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         // Mock AsyncSelect endpoints (Nodes/Assets/Accounts)
         if (config.url?.includes('suggestions')) {
           let type = 'Item';
@@ -75,7 +83,7 @@ apiClient.interceptors.request.use(
         return { data: {}, status: 200, statusText: 'OK', headers: {}, config } as any;
       };
     }
-    
+
     return config;
   },
   (error) => {
