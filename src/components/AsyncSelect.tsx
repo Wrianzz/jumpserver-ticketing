@@ -48,18 +48,15 @@ export function AsyncSelect({
   const [options, setOptions] = useState<AsyncSelectOption[]>(initialOptions);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  
+
   const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
     if (initialOptions.length === 0) return;
-
-    setOptions(prevOptions => {
+    setOptions((prevOptions) => {
       const merged = [...prevOptions];
-      initialOptions.forEach(option => {
-        if (!merged.some(existing => existing.value === option.value)) {
-          merged.push(option);
-        }
+      initialOptions.forEach((option) => {
+        if (!merged.some((existing) => existing.value === option.value)) merged.push(option);
       });
       return merged;
     });
@@ -68,64 +65,47 @@ export function AsyncSelect({
   const fetchOptions = async (query: string) => {
     setLoading(true);
     try {
-      const response =
-        method === 'POST'
-          ? await apiClient.post(
-              endpoint,
-              { ...postBody, username: query },
-            )
-          : await apiClient.get(
-              `${endpoint}?search=${encodeURIComponent(query)}&limit=10`
-            );
-      // JumpServer API returns lists in response.data or response.data.results depending on pagination.
+      const response = method === 'POST'
+        ? await apiClient.post(endpoint, { ...postBody, username: query })
+        : await apiClient.get(`${endpoint}?search=${encodeURIComponent(query)}&limit=10`);
+
       const rawResults = response.data?.results || response.data || [];
       const results = Array.isArray(rawResults) ? rawResults : [];
       const formattedOptions = results
         .map((item: any) => {
           if (typeof item === 'string') return { value: item, label: item };
-
           const value = item.id || item.value || item.username || item.name;
           const label = item.name || item.username || item.hostname || item.label || item.id || item.value;
-
           return value && label ? { value, label } : null;
         })
         .filter(Boolean) as AsyncSelectOption[];
-      
-      // Preserve previously selected options that might not be in the current search results.
-      setOptions(prevOptions => {
-        const newOptions = [...formattedOptions];
-        value.forEach(val => {
-          if (!newOptions.find(o => o.value === val)) {
-            const existingOpt = prevOptions.find(o => o.value === val);
-            if (existingOpt) {
-              newOptions.push(existingOpt);
-            } else {
-              newOptions.push({ value: val, label: val });
-            }
-          }
+
+      // Search results must replace the previous result set. Keeping the old
+      // options here makes server-side search appear broken when shouldFilter
+      // is disabled, because every old result remains visible.
+      const selectedOptions = value
+        .filter((val) => !formattedOptions.some((option) => option.value === val))
+        .map((val) => {
+          const existing = options.find((option) => option.value === val);
+          return existing || { value: val, label: val };
         });
-        return newOptions;
-      });
+
+      setOptions([...formattedOptions, ...selectedOptions]);
     } catch (error) {
       console.error('Error fetching options:', error);
-      setOptions(prevOptions => prevOptions.filter(option => value.includes(option.value)));
+      setOptions((prevOptions) => prevOptions.filter((option) => value.includes(option.value)));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (open) {
-      fetchOptions(debouncedSearch);
-    }
-  }, [debouncedSearch, open]);
+    if (open) fetchOptions(debouncedSearch);
+  }, [debouncedSearch, open, endpoint, method]);
 
   const toggleValue = (currentValue: string) => {
-    if (value.includes(currentValue)) {
-      onChange(value.filter((v) => v !== currentValue));
-    } else {
-      onChange([...value, currentValue]);
-    }
+    if (value.includes(currentValue)) onChange(value.filter((v) => v !== currentValue));
+    else onChange([...value, currentValue]);
   };
 
   const removeValue = (e: React.MouseEvent, valToRemove: string) => {
@@ -143,64 +123,37 @@ export function AsyncSelect({
           onClick={() => setOpen(!open)}
         >
           <div className="flex flex-wrap gap-1.5 items-center flex-1 pr-2">
-            {value.length > 0 ? (
-              value.map((val) => {
-                const label = options.find((opt) => opt.value === val)?.label || val;
-                return (
-                  <span
-                    key={val}
-                    className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-sm flex items-center gap-1"
-                  >
-                    {label}
-                    <button
-                      type="button"
-                      className="text-slate-400 hover:text-slate-600 transition-colors ml-0.5"
-                      onClick={(e) => removeValue(e, val)}
-                    >
-                      ×
-                    </button>
-                  </span>
-                );
-              })
-            ) : (
-              <span className="text-slate-500 text-sm">{placeholder}</span>
-            )}
+            {value.length > 0 ? value.map((val) => {
+              const label = options.find((opt) => opt.value === val)?.label || val;
+              return (
+                <span key={val} className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-sm flex items-center gap-1">
+                  {label}
+                  <button type="button" className="text-slate-400 hover:text-slate-600 transition-colors ml-0.5" onClick={(e) => removeValue(e, val)}>×</button>
+                </span>
+              );
+            }) : <span className="text-slate-500 text-sm">{placeholder}</span>}
           </div>
           <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder={`Search ${placeholder.toLowerCase()}...`} 
+          <CommandInput
+            placeholder={`Search ${placeholder.toLowerCase()}...`}
             value={search}
             onValueChange={setSearch}
           />
           <CommandList>
             {loading && (
               <div className="flex items-center justify-center p-4 text-sm text-gray-500">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...
               </div>
             )}
-            {!loading && options.length === 0 && (
-              <CommandEmpty>{emptyText}</CommandEmpty>
-            )}
+            {!loading && options.length === 0 && <CommandEmpty>{emptyText}</CommandEmpty>}
             <CommandGroup>
               {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={() => {
-                    toggleValue(option.value);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      'mr-2 h-4 w-4',
-                      value.includes(option.value) ? 'opacity-100' : 'opacity-0'
-                    )}
-                  />
+                <CommandItem key={option.value} value={option.value} onSelect={() => toggleValue(option.value)}>
+                  <Check className={cn('mr-2 h-4 w-4', value.includes(option.value) ? 'opacity-100' : 'opacity-0')} />
                   {option.label}
                 </CommandItem>
               ))}
