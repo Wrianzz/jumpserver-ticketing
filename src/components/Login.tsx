@@ -12,26 +12,11 @@ function extractAuthData(data: any) {
   return { token: authData?.token || authData?.data?.token, user: authData?.user || authData?.data?.user };
 }
 
-async function resolvePortalRole(user: JumpServerAuthUser): Promise<'admin' | 'approver' | 'user'> {
-  if (user.is_superuser === true || user.is_org_admin === true) return 'admin';
-
-  try {
-    const response = await apiClient.get('/api/v1/tickets/flows/', { params: { type: 'apply_asset', limit: 200 } });
-    const flows = Array.isArray(response.data) ? response.data : Array.isArray(response.data?.results) ? response.data.results : [];
-    const flow = flows.find((item: any) => item?.type === 'apply_asset') || flows[0];
-    const rules = Array.isArray(flow?.rules) ? flow.rules : [];
-    const userId = String(user.id);
-
-    const isApprover = rules.some((rule: any) => {
-      const users = rule?.users;
-      return users?.type === 'ids' && Array.isArray(users?.ids) && users.ids.map((id: any) => String(id)).includes(userId);
-    });
-
-    return isApprover ? 'approver' : 'user';
-  } catch (error) {
-    console.warn('Unable to resolve Ticket Flow role; defaulting to user:', error);
-    return 'user';
-  }
+async function resolvePortalAccess(): Promise<'admin' | 'approver' | 'user'> {
+  const response = await apiClient.get('/portal-api/access');
+  const role = response.data?.role;
+  if (role === 'admin' || role === 'approver' || role === 'user') return role;
+  throw new Error('Portal access endpoint returned an invalid role.');
 }
 
 export function Login({ onLoginSuccess }: LoginProps) {
@@ -53,10 +38,24 @@ export function Login({ onLoginSuccess }: LoginProps) {
       is_superuser: user.is_superuser, is_org_admin: user.is_org_admin,
     }));
 
-    const role = await resolvePortalRole(user);
-    sessionStorage.setItem('jumpserver_role', role);
-    onLoginSuccess();
-    return true;
+    try {
+      const role = await resolvePortalAccess();
+      sessionStorage.setItem('jumpserver_role', role);
+      onLoginSuccess();
+      return true;
+    } catch (error: any) {
+      sessionStorage.removeItem('jumpserver_token');
+      sessionStorage.removeItem('jumpserver_user');
+      sessionStorage.removeItem('jumpserver_role');
+      console.error('Portal access resolution error:', error);
+      setError(
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.message ||
+        'Gagal menentukan role portal. Pastikan backend portal dan JUMPSERVER_SERVICE_TOKEN sudah dikonfigurasi.'
+      );
+      return false;
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
