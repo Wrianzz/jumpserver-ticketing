@@ -75,9 +75,36 @@ async function findUser(req: Request, identifier: string, cache: Map<string, Use
 
 async function getTeamGroups(req: Request, userId: string, cache: Map<string, Set<string>>): Promise<Set<string>> {
   if (cache.has(userId)) return cache.get(userId)!;
-  const response = await axios.get(`${JUMPSERVER_URL}/api/v1/users/users-groups-relations/`, { headers: getJumpServerHeaders(req), params: { user: userId, limit: 200 }, timeout: 15000 });
-  const relations = extractResults(response.data);
-  const names = relations.map((relation: any) => relation?.usergroup_display || relation?.usergroup?.name || relation?.usergroup).filter((name: unknown): name is string => typeof name === 'string' && name.trim().length > 0);
+
+  // Read the user's groups from the user detail serializer. The relation-list
+  // endpoint is not reliable for this check because its filtering/pagination
+  // can produce incomplete group membership for individual users.
+  const userResponse = await axios.get(`${JUMPSERVER_URL}/api/v1/users/users/${encodeURIComponent(userId)}/`, {
+    headers: getJumpServerHeaders(req),
+    timeout: 15000
+  });
+
+  const rawGroups = userResponse.data?.groups;
+  let names: string[] = [];
+
+  if (Array.isArray(rawGroups)) {
+    names = rawGroups
+      .map((group: any) => typeof group === 'string' ? group : group?.name || group?.display || group?.label)
+      .filter((name: unknown): name is string => typeof name === 'string' && name.trim().length > 0);
+  } else {
+    // Compatibility fallback for JumpServer versions/serializers that omit
+    // `groups` from the user detail response.
+    const relationResponse = await axios.get(`${JUMPSERVER_URL}/api/v1/users/users-groups-relations/`, {
+      headers: getJumpServerHeaders(req),
+      params: { user: userId, limit: 200 },
+      timeout: 15000
+    });
+    const relations = extractResults(relationResponse.data);
+    names = relations
+      .map((relation: any) => relation?.usergroup_display || relation?.usergroup?.name || relation?.usergroup)
+      .filter((name: unknown): name is string => typeof name === 'string' && name.trim().length > 0);
+  }
+
   const teams = configuredTeamNames(names);
   cache.set(userId, teams);
   return teams;
