@@ -10,7 +10,6 @@ const JUMPSERVER_TIMEZONE_OFFSET = process.env.JUMPSERVER_TIMEZONE_OFFSET || '+0
 const TEAM_GROUPS = new Set((process.env.TEAM_GROUPS || '').split(',').map((name) => name.trim().toLowerCase()).filter(Boolean));
 const TEAM_GROUPS_IGNORE = new Set((process.env.TEAM_GROUPS_IGNORE || 'Default').split(',').map((name) => name.trim().toLowerCase()).filter(Boolean));
 app.use(express.json({ limit: '1mb' }));
-app.use((req, _res, next) => { console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`); next(); });
 
 type TicketRequestBody = { title?: string; org_id?: string; apply_nodes?: string[]; apply_assets?: string[]; apply_accounts?: string[]; apply_actions?: string[]; apply_date_start?: string; apply_date_expired?: string; comment?: string; };
 type ApprovalPayload = { org_id: string; apply_nodes: Array<{ id: string }>; apply_assets: Array<{ id: string }>; apply_accounts: string[]; apply_actions: string[]; apply_date_start: string; apply_date_expired: string; };
@@ -50,8 +49,6 @@ async function getAuthenticatedUser(req: Request): Promise<UserSummary> {
   const response = await axios.get(`${JUMPSERVER_URL}/api/v1/users/profile/`, { headers: getJumpServerHeaders(req), timeout: 15000 });
   const profile = response.data?.data || response.data;
   if (!profile?.id) throw new Error('JumpServer profile response does not contain a user id');
-  const portalUserId = req.header('x-portal-user-id')?.trim();
-  if (portalUserId && String(portalUserId) !== String(profile.id)) console.warn('Portal user id mismatch; using authenticated JumpServer profile instead:', { portalUserId, authenticatedUserId: profile.id, username: profile.username });
   return { id: String(profile.id), username: profile.username, name: profile.name };
 }
 
@@ -93,17 +90,9 @@ async function getTeamGroups(req: Request, userId: string, cache: Map<string, Se
 function hasTeamIntersection(left: Set<string>, right: Set<string>): boolean { for (const name of left) if (right.has(name)) return true; return false; }
 
 async function canCurrentUserSeeTicket(req: Request, ticket: any, currentUserId: string, userCache: Map<string, UserSummary | null>, groupCache: Map<string, Set<string>>): Promise<boolean> {
-  const ticketId = String(ticket?.id || '(no-id)');
   const state = typeof ticket?.state === 'string' ? ticket.state : ticket?.state?.value;
+  if (state !== 'pending') return false;
   const processMap = Array.isArray(ticket?.process_map) ? ticket.process_map : [];
-  console.log('\n========== APPROVAL VISIBILITY DEBUG ==========');
-  console.log('Ticket:', { id: ticketId, serial_num: ticket?.serial_num, title: ticket?.title, applicant: ticket?.applicant, date_created: ticket?.date_created, state });
-  console.log('Current authenticated user:', currentUserId);
-  console.log('Raw process_map:', JSON.stringify(processMap, null, 2));
-  if (state !== 'pending') { console.log('REJECT [STATE]:', state); return false; }
-
-  // JumpServer may return multiple pending levels. The active approval step is
-  // the lowest pending approval_level; do not use array order.
   const pendingSteps = processMap.filter((step: any) => {
     const stepState = typeof step?.state === 'string' ? step.state : step?.state?.value;
     return stepState === 'pending';
@@ -114,28 +103,18 @@ async function canCurrentUserSeeTicket(req: Request, ticket: any, currentUserId:
     const stepLevel = Number(step?.approval_level ?? Number.MAX_SAFE_INTEGER);
     return stepLevel < currentLevel ? step : current;
   }, null);
-  console.log('Pending steps:', pendingSteps.map((step: any) => ({ approval_level: step?.approval_level, assignees: step?.assignees, assignees_display: step?.assignees_display })));
-  console.log('Current active approval step:', currentStep ? { approval_level: currentStep.approval_level, state: currentStep.state, assignees: currentStep.assignees, assignees_display: currentStep.assignees_display } : null);
-  if (!currentStep) { console.log('REJECT [NO_PENDING_STEP]'); return false; }
+  if (!currentStep) return false;
 
   const assignees = Array.isArray(currentStep.assignees) ? currentStep.assignees.map((id: any) => String(id)) : [];
-  const assigned = assignees.includes(String(currentUserId));
-  console.log('ASSIGNEE CHECK:', { currentUserId: String(currentUserId), assignees, assigned, assignees_display: currentStep.assignees_display });
-  if (!assigned) { console.log('REJECT [NOT_ASSIGNEE]'); return false; }
+  if (!assignees.includes(String(currentUserId))) return false;
 
   const applicant = String(ticket?.applicant || '').trim();
-  if (!applicant) { console.log('REJECT [NO_APPLICANT]'); return false; }
+  if (!applicant) return false;
   const applicantUser = await findUser(req, applicant, userCache);
-  console.log('APPLICANT RESOLUTION:', { raw: applicant, resolved: applicantUser });
-  if (!applicantUser?.id) { console.log('REJECT [APPLICANT_NOT_RESOLVED]'); return false; }
+  if (!applicantUser?.id) return false;
 
   const [approverTeams, applicantTeams] = await Promise.all([getTeamGroups(req, currentUserId, groupCache), getTeamGroups(req, applicantUser.id, groupCache)]);
-  const intersection = [...approverTeams].filter((team) => applicantTeams.has(team));
-  const allowed = approverTeams.size > 0 && applicantTeams.size > 0 && intersection.length > 0;
-  console.log('TEAM CHECK:', { approver: currentUserId, approverTeams: [...approverTeams], applicant: applicantUser, applicantTeams: [...applicantTeams], intersection, allowed });
-  console.log('FINAL RESULT:', allowed ? 'ALLOW' : 'REJECT [NO_TEAM_INTERSECTION]');
-  console.log('================================================\n');
-  return allowed;
+  return approverTeams.size > 0 && applicantTeams.size > 0 && hasTeamIntersection(approverTeams, applicantTeams);
 }
 
 async function fetchPendingTickets(req: Request): Promise<any[]> {
@@ -147,7 +126,6 @@ async function fetchPendingTickets(req: Request): Promise<any[]> {
     const response = await axios.get(`${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/`, { headers: getJumpServerHeaders(req), params: { state: 'pending', ordering: '-date_created', limit: pageSize, offset }, timeout: 15000 });
     const page = extractResults(response.data);
     tickets.push(...page);
-    console.log('Approval ticket page:', { offset, received: page.length, totalCollected: tickets.length, firstTicket: page[0]?.id, firstDateCreated: page[0]?.date_created, lastTicket: page[page.length - 1]?.id, lastDateCreated: page[page.length - 1]?.date_created });
     if (Array.isArray(response.data) || page.length < pageSize) break;
     if (typeof response.data?.next === 'undefined' && typeof response.data?.count !== 'number') break;
     if (response.data?.next === null) break;
@@ -176,18 +154,13 @@ async function listTickets(req: Request, res: Response, state?: string) {
       return res.json({ success: true, count: filtered.length, tickets: filtered });
     }
     const currentUser = await getAuthenticatedUser(req);
-    console.log('Loading approvals for authenticated user:', currentUser);
     const pendingTickets = await fetchPendingTickets(req);
     const userCache = new Map<string, UserSummary | null>();
     const groupCache = new Map<string, Set<string>>();
     const visible = [];
     for (const ticket of pendingTickets) {
-      const allowed = await canCurrentUserSeeTicket(req, ticket, currentUser.id, userCache, groupCache);
-      console.log('FILTER DECISION:', { ticketId: ticket?.id, allowed });
-      if (allowed) visible.push(ticket);
+      if (await canCurrentUserSeeTicket(req, ticket, currentUser.id, userCache, groupCache)) visible.push(ticket);
     }
-    console.log('END APPROVAL FILTER:', { pendingCount: pendingTickets.length, visibleCount: visible.length, visibleTickets: visible.map((ticket: any) => ({ id: ticket?.id, serial_num: ticket?.serial_num, applicant: ticket?.applicant, title: ticket?.title })) });
-    console.log('APPROVAL RESPONSE:', { count: visible.length, ticketIds: visible.map((ticket: any) => ticket?.id) });
     return res.json({ success: true, count: visible.length, tickets: visible });
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -204,4 +177,4 @@ app.put('/portal-api/approvals/:id/approve', requireAuth, (req, res) => processA
 app.put('/portal-api/approvals/:id/reject', requireAuth, (req, res) => processApproval(req, res, 'reject'));
 
 app.put('/portal-api/tickets/:id/close', requireAuth, async (req, res) => { try { if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' }); const response = await axios.put(`${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/${encodeURIComponent(req.params.id)}/close/`, {}, { headers: { ...getJumpServerHeaders(req), 'Content-Type': 'application/json' }, timeout: 15000 }); return res.json({ success: true, ticket: response.data }); } catch (error) { const axiosError = error as AxiosError; if (axiosError.response) return res.status(axiosError.response.status).json({ success: false, message: 'JumpServer rejected the cancel request', details: axiosError.response.data }); console.error('Cancel ticket error:', error); return res.status(500).json({ success: false, message: 'Failed to cancel ticket' }); } });
-app.listen(PORT, () => { console.log(`JumpServer Ticketing backend listening on port ${PORT}`); console.log(`JumpServer URL: ${JUMPSERVER_URL || '(NOT CONFIGURED)'}`); console.log(`JumpServer org: ${JUMPSERVER_ORG_ID}`); console.log(`JumpServer timezone offset: ${JUMPSERVER_TIMEZONE_OFFSET}`); });
+app.listen(PORT, () => { console.log(`JumpServer Ticketing backend listening on port ${PORT}`); });
