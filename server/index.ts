@@ -100,15 +100,22 @@ async function canCurrentUserSeeTicket(req: Request, ticket: any, currentUserId:
   console.log('Ticket:', { id: ticketId, serial_num: ticket?.serial_num, title: ticket?.title, applicant: ticket?.applicant, date_created: ticket?.date_created, state });
   console.log('Current authenticated user:', currentUserId);
   console.log('Raw process_map:', JSON.stringify(processMap, null, 2));
-
   if (state !== 'pending') { console.log('REJECT [STATE]:', state); return false; }
 
-  const currentStep = processMap.find((step: any) => {
+  // JumpServer may return multiple pending levels. The active approval step is
+  // the lowest pending approval_level; do not use array order.
+  const pendingSteps = processMap.filter((step: any) => {
     const stepState = typeof step?.state === 'string' ? step.state : step?.state?.value;
     return stepState === 'pending';
   });
-  console.log('Current pending step:', currentStep ? { approval_level: currentStep.approval_level, state: currentStep.state, assignees: currentStep.assignees, assignees_display: currentStep.assignees_display } : null);
-
+  const currentStep = pendingSteps.reduce((current: any, step: any) => {
+    if (!current) return step;
+    const currentLevel = Number(current?.approval_level ?? Number.MAX_SAFE_INTEGER);
+    const stepLevel = Number(step?.approval_level ?? Number.MAX_SAFE_INTEGER);
+    return stepLevel < currentLevel ? step : current;
+  }, null);
+  console.log('Pending steps:', pendingSteps.map((step: any) => ({ approval_level: step?.approval_level, assignees: step?.assignees, assignees_display: step?.assignees_display })));
+  console.log('Current active approval step:', currentStep ? { approval_level: currentStep.approval_level, state: currentStep.state, assignees: currentStep.assignees, assignees_display: currentStep.assignees_display } : null);
   if (!currentStep) { console.log('REJECT [NO_PENDING_STEP]'); return false; }
 
   const assignees = Array.isArray(currentStep.assignees) ? currentStep.assignees.map((id: any) => String(id)) : [];
@@ -118,7 +125,6 @@ async function canCurrentUserSeeTicket(req: Request, ticket: any, currentUserId:
 
   const applicant = String(ticket?.applicant || '').trim();
   if (!applicant) { console.log('REJECT [NO_APPLICANT]'); return false; }
-
   const applicantUser = await findUser(req, applicant, userCache);
   console.log('APPLICANT RESOLUTION:', { raw: applicant, resolved: applicantUser });
   if (!applicantUser?.id) { console.log('REJECT [APPLICANT_NOT_RESOLVED]'); return false; }
@@ -169,27 +175,20 @@ async function listTickets(req: Request, res: Response, state?: string) {
       const filtered = state ? tickets.filter((ticket: any) => ticket?.state?.value === state || ticket?.state === state) : tickets;
       return res.json({ success: true, count: filtered.length, tickets: filtered });
     }
-
     const currentUser = await getAuthenticatedUser(req);
-    const currentUserId = currentUser.id;
     console.log('Loading approvals for authenticated user:', currentUser);
-
     const pendingTickets = await fetchPendingTickets(req);
     const userCache = new Map<string, UserSummary | null>();
     const groupCache = new Map<string, Set<string>>();
     const visible = [];
-
-    console.log('BEGIN APPROVAL FILTER:', { pendingCount: pendingTickets.length, currentUser });
     for (const ticket of pendingTickets) {
-      const allowed = await canCurrentUserSeeTicket(req, ticket, currentUserId, userCache, groupCache);
+      const allowed = await canCurrentUserSeeTicket(req, ticket, currentUser.id, userCache, groupCache);
       console.log('FILTER DECISION:', { ticketId: ticket?.id, allowed });
       if (allowed) visible.push(ticket);
     }
-    console.log('END APPROVAL FILTER:', { pendingCount: pendingTickets.length, visibleCount: visible.length, visibleTickets: visible.map((ticket: any) => ({ id: ticket?.id, serial_num: ticket?.serial_num, applicant: ticket?.applicant, date_created: ticket?.date_created })) });
-
-    const payload = { success: true, count: visible.length, tickets: visible };
-    console.log('APPROVAL RESPONSE:', { count: payload.count, ticketIds: visible.map((ticket: any) => ticket?.id) });
-    return res.json(payload);
+    console.log('END APPROVAL FILTER:', { pendingCount: pendingTickets.length, visibleCount: visible.length, visibleTickets: visible.map((ticket: any) => ({ id: ticket?.id, serial_num: ticket?.serial_num, applicant: ticket?.applicant, title: ticket?.title })) });
+    console.log('APPROVAL RESPONSE:', { count: visible.length, ticketIds: visible.map((ticket: any) => ticket?.id) });
+    return res.json({ success: true, count: visible.length, tickets: visible });
   } catch (error) {
     const axiosError = error as AxiosError;
     if (axiosError.response) return res.status(axiosError.response.status).json({ success: false, message: state ? 'Failed to load approval requests from JumpServer' : 'Failed to load request history from JumpServer', details: axiosError.response.data });
