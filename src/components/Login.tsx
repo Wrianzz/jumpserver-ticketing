@@ -31,29 +31,17 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
   const completeLogin = async (token: string | undefined, user: JumpServerAuthUser | undefined) => {
     if (!token || !user) { setError('Login failed: Invalid response from JumpServer.'); return false; }
-
     sessionStorage.setItem('jumpserver_token', token);
-    sessionStorage.setItem('jumpserver_user', JSON.stringify({
-      id: user.id, username: user.username, name: user.name, email: user.email,
-      is_superuser: user.is_superuser, is_org_admin: user.is_org_admin,
-    }));
-
+    sessionStorage.setItem('jumpserver_user', JSON.stringify({ id: user.id, username: user.username, name: user.name, email: user.email, is_superuser: user.is_superuser, is_org_admin: user.is_org_admin }));
     try {
       const role = await resolvePortalAccess();
       sessionStorage.setItem('jumpserver_role', role);
       onLoginSuccess();
       return true;
     } catch (error: any) {
-      sessionStorage.removeItem('jumpserver_token');
-      sessionStorage.removeItem('jumpserver_user');
-      sessionStorage.removeItem('jumpserver_role');
+      sessionStorage.removeItem('jumpserver_token'); sessionStorage.removeItem('jumpserver_user'); sessionStorage.removeItem('jumpserver_role');
       console.error('Portal access resolution error:', error);
-      setError(
-        error.response?.data?.message ||
-        error.response?.data?.detail ||
-        error.message ||
-        'Gagal menentukan role portal. Pastikan backend portal dan JUMPSERVER_SERVICE_TOKEN sudah dikonfigurasi.'
-      );
+      setError(error.response?.data?.message || error.response?.data?.detail || error.message || 'Gagal menentukan role portal.');
       return false;
     }
   };
@@ -67,8 +55,15 @@ export function Login({ onLoginSuccess }: LoginProps) {
       await completeLogin(token, user);
     } catch (error: any) {
       console.error('Login Error:', error);
-      if (error.response?.status === 401) setError('Username atau password salah!');
-      else setError(error.response?.data?.detail || error.response?.data?.msg || 'Gagal terhubung ke server JumpServer.');
+      const responseData = error.response?.data;
+      if (responseData?.error === 'mfa_required') {
+        setMfaRequired(true);
+        setOtp('');
+      } else if (error.response?.status === 401) {
+        setError('Username atau password salah!');
+      } else {
+        setError(responseData?.detail || responseData?.msg || responseData?.error || 'Gagal terhubung ke server JumpServer.');
+      }
     } finally { setLoading(false); }
   };
 
