@@ -23,6 +23,34 @@ function getJumpServerServiceHeaders() { return { Authorization: `Token ${JUMPSE
 function formatJumpServerDate(value: string): string { const date = new Date(value); if (Number.isNaN(date.getTime())) throw new Error('Invalid date value'); const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }); const parts = Object.fromEntries(formatter.formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value])); return `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}:${parts.second} ${JUMPSERVER_TIMEZONE_OFFSET}`; }
 app.get('/portal-api/health', (_req, res) => res.json({ success: true, service: 'jumpserver-ticketing-backend' }));
 
+// JumpServer's MFA API is session-backed. Proxy the authentication calls so the
+// browser keeps the same upstream session cookie across password, OTP challenge,
+// and the final token request. This is required for MFA-enabled non-admin users.
+async function proxyJumpServerAuth(req: Request, res: Response, path: string) {
+  try {
+    if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
+    const upstream = await axios.post(`${JUMPSERVER_URL}${path}`, req.body, {
+      headers: { 'Content-Type': 'application/json', 'X-JMS-ORG': JUMPSERVER_ORG_ID, ...(req.header('cookie') ? { Cookie: req.header('cookie')! } : {}) },
+      validateStatus: () => true,
+      timeout: 15000,
+    });
+    const setCookie = upstream.headers['set-cookie'];
+    if (setCookie) res.setHeader('Set-Cookie', setCookie);
+    return res.status(upstream.status).json(upstream.data);
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      const setCookie = axiosError.response.headers?.['set-cookie'];
+      if (setCookie) res.setHeader('Set-Cookie', setCookie);
+      return res.status(axiosError.response.status).json(axiosError.response.data);
+    }
+    console.error('JumpServer auth proxy error:', error);
+    return res.status(502).json({ success: false, message: 'Failed to reach JumpServer authentication service' });
+  }
+}
+app.post('/portal-api/auth/login', (req, res) => proxyJumpServerAuth(req, res, '/api/v1/authentication/auth/'));
+app.post('/portal-api/auth/mfa/challenge', (req, res) => proxyJumpServerAuth(req, res, '/api/v1/authentication/mfa/challenge/'));
+
 app.get('/portal-api/logout', async (req: Request, res: Response) => { try { if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' }); const cookie = req.header('cookie'); if (!cookie) return res.status(204).end(); const response = await axios.get(`${JUMPSERVER_URL}/core/auth/logout/?next=/console/dashboard`, { headers: { Cookie: cookie }, maxRedirects: 0, validateStatus: (status) => status >= 200 && status < 400, timeout: 15000 }); const setCookie = response.headers['set-cookie']; if (setCookie) res.setHeader('Set-Cookie', setCookie); return res.status(200).json({ success: true }); } catch (error) { const axiosError = error as AxiosError; const setCookie = axiosError.response?.headers?.['set-cookie']; if (setCookie) res.setHeader('Set-Cookie', setCookie); if (axiosError.response) return res.status(200).json({ success: true }); console.error('JumpServer logout error:', error); return res.status(502).json({ success: false, message: 'Failed to log out from JumpServer' }); } });
 
 app.post('/portal-api/tickets', requireAuth, async (req: Request<{}, {}, TicketRequestBody>, res: Response) => { try { if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured on the backend. Check .env and restart npm run server.' }); const { title, org_id, apply_nodes = [], apply_assets = [], apply_accounts = ['@ALL'], apply_actions = ['connect'], apply_date_start, apply_date_expired, comment = '' } = req.body; if (!title?.trim()) return res.status(400).json({ success: false, message: 'Ticket title is required' }); if (apply_nodes.length === 0 && apply_assets.length === 0) return res.status(400).json({ success: false, message: 'Select at least one node or asset' }); if (!apply_date_start || !apply_date_expired) return res.status(400).json({ success: false, message: 'Start and expiry dates are required' }); const startDate = new Date(apply_date_start); const expiredDate = new Date(apply_date_expired); if (Number.isNaN(startDate.getTime()) || Number.isNaN(expiredDate.getTime())) return res.status(400).json({ success: false, message: 'Invalid start or expiry date' }); if (expiredDate <= startDate) return res.status(400).json({ success: false, message: 'Expiry date must be later than start date' }); const invalidActions = apply_actions.filter((action) => !ALLOWED_ACTIONS.has(action)); if (invalidActions.length > 0) return res.status(400).json({ success: false, message: `Unsupported actions: ${invalidActions.join(', ')}` }); if (apply_accounts.includes('@ALL') && apply_accounts.length > 1) return res.status(400).json({ success: false, message: '@ALL cannot be combined with other accounts' }); if (apply_accounts.includes('@SPEC') && apply_accounts.length < 2) return res.status(400).json({ success: false, message: '@SPEC must be followed by at least one specified account' }); const jumpServerPayload = { title: title.trim(), org_id: org_id || JUMPSERVER_ORG_ID, apply_nodes, apply_assets, apply_accounts, apply_actions, apply_date_start, apply_date_expired, comment: comment.trim() }; const response = await axios.post(`${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/open/`, jumpServerPayload, { headers: { ...getJumpServerHeaders(req), 'Content-Type': 'application/json' }, timeout: 15000 }); const tickets = Array.isArray(response.data) ? response.data : [response.data]; return res.status(201).json({ success: true, ticket: tickets[0] || null }); } catch (error) { const axiosError = error as AxiosError; if (axiosError.response) return res.status(axiosError.response.status).json({ success: false, message: 'JumpServer rejected the ticket request', details: axiosError.response.data, upstreamStatus: axiosError.response.status }); console.error('Create ticket error:', error); return res.status(500).json({ success: false, message: 'Failed to create JIT ticket' }); } });
