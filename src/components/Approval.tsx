@@ -14,25 +14,31 @@ type Ticket = {
   apply_actions?: { value: string; label: string }[];
   process_map?: ProcessStep[];
   approval_step?: { value?: number; label?: string };
-  state?: { value?: string; label?: string };
-  status?: { value?: string; label?: string };
+  state?: { value?: string; label?: string } | string;
+  status?: { value?: string; label?: string } | string;
   applicant?: string; org_name?: string; apply_date_start?: string; apply_date_expired?: string; date_created?: string; comment?: string;
 };
 const PAGE_SIZE = 25;
 function stateClass(state?: string) { return state === 'pending' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' : 'bg-slate-50 text-slate-600 border-slate-200'; }
+function getStateValue(state?: Ticket['state']) { return typeof state === 'string' ? state : state?.value; }
 
 export function Approval() {
   const [tickets, setTickets] = useState<Ticket[]>([]); const [searchTerm, setSearchTerm] = useState(''); const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [activeMenu, setActiveMenu] = useState<string | null>(null); const [processing, setProcessing] = useState<string | null>(null);
-  const currentUserId = useMemo(() => { try { return JSON.parse(sessionStorage.getItem('jumpserver_user') || '{}')?.id || ''; } catch { return ''; } }, []);
 
   const loadApprovals = async () => {
     setLoading(true); setError('');
     try {
       const response = await apiClient.get('/portal-api/approvals'); const data = response.data;
       if (!data?.success) throw new Error(data?.message || 'Failed to load approval requests');
-      setTickets((data.tickets || []).filter((ticket: Ticket) => ticket.state?.value === 'pending' && ticket.process_map?.some((step) => step.state === 'pending' && step.assignees?.includes(currentUserId))));
+
+      // The backend is the authoritative access-control layer. It already
+      // filters by the authenticated JumpServer user, current approval step,
+      // and applicant/approver team intersection. Do not re-filter here using
+      // sessionStorage or a partial serializer shape, otherwise a valid ticket
+      // can be hidden by the UI even though the API returned it intentionally.
+      setTickets(Array.isArray(data.tickets) ? data.tickets : []);
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed to load approval requests'); } finally { setLoading(false); }
   };
   useEffect(() => { loadApprovals(); }, []); useEffect(() => { setPage(1); }, [searchTerm]);
@@ -59,7 +65,7 @@ export function Approval() {
     <div className="flex items-center justify-end p-4 border-b border-slate-100"><div className="flex items-center gap-3"><div className="relative w-64"><div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="w-4 h-4 text-slate-400" /></div><Input placeholder="Search" className="w-full pl-9 pr-8 h-9 text-sm border-slate-200 bg-slate-50 rounded-md" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div><Button variant="ghost" size="icon" onClick={loadApprovals} disabled={loading} className="h-9 w-9"><RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></Button></div></div>
     {error && <div className="mx-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
     <div className="overflow-x-auto" style={{ minHeight: '300px' }}><table className="w-full text-sm text-left"><thead className="bg-slate-50/50 text-slate-600 font-medium border-b border-slate-100"><tr><th className="px-4 py-3">Title</th><th className="px-4 py-3">No.</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Applicant</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Date</th><th className="px-4 py-3 text-right">Action</th></tr></thead><tbody>
-      {loading ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading approval requests...</td></tr> : pageItems.length === 0 ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No approval requests found.</td></tr> : pageItems.map((ticket) => <tr key={ticket.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="px-4 py-3"><button className="text-[#009688] hover:underline" onClick={() => setSelectedTicket(ticket)}>{ticket.title}</button></td><td className="px-4 py-3 text-slate-700">{ticket.serial_num}</td><td className="px-4 py-3 text-slate-700">{ticket.type?.label || '-'}</td><td className="px-4 py-3 text-slate-700">{ticket.applicant || '-'}</td><td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 text-xs font-medium border rounded ${stateClass(ticket.state?.value)}`}>{ticket.state?.label || 'Pending approval'}</span></td><td className="px-4 py-3 text-slate-700">{ticket.date_created || '-'}</td><td className="px-4 py-3"><div className="flex justify-end gap-1 relative"><Button size="sm" className="bg-[#009688] hover:bg-[#00796B] text-white h-7 px-3 text-xs rounded" onClick={() => setSelectedTicket(ticket)}>Details</Button><Button variant="outline" size="sm" className="h-7 w-7 p-0 border-[#009688]/30 text-[#009688] rounded" onClick={() => setActiveMenu(activeMenu === ticket.id ? null : ticket.id)}><MoreHorizontal className="w-4 h-4" /></Button>{activeMenu === ticket.id && <div className="absolute right-0 top-8 w-32 bg-white rounded-md shadow-lg border border-slate-200 z-10 py-1"><button disabled={!!processing} onClick={() => decide(ticket, 'approve')} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50">Accept</button><button disabled={!!processing} onClick={() => decide(ticket, 'reject')} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50">Reject</button></div>}</div></td></tr>)}
+      {loading ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading approval requests...</td></tr> : pageItems.length === 0 ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No approval requests found.</td></tr> : pageItems.map((ticket) => <tr key={ticket.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="px-4 py-3"><button className="text-[#009688] hover:underline" onClick={() => setSelectedTicket(ticket)}>{ticket.title}</button></td><td className="px-4 py-3 text-slate-700">{ticket.serial_num}</td><td className="px-4 py-3 text-slate-700">{ticket.type?.label || '-'}</td><td className="px-4 py-3 text-slate-700">{ticket.applicant || '-'}</td><td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 text-xs font-medium border rounded ${stateClass(getStateValue(ticket.state))}`}>{typeof ticket.state === 'string' ? ticket.state : ticket.state?.label || 'Pending approval'}</span></td><td className="px-4 py-3 text-slate-700">{ticket.date_created || '-'}</td><td className="px-4 py-3"><div className="flex justify-end gap-1 relative"><Button size="sm" className="bg-[#009688] hover:bg-[#00796B] text-white h-7 px-3 text-xs rounded" onClick={() => setSelectedTicket(ticket)}>Details</Button><Button variant="outline" size="sm" className="h-7 w-7 p-0 border-[#009688]/30 text-[#009688] rounded" onClick={() => setActiveMenu(activeMenu === ticket.id ? null : ticket.id)}><MoreHorizontal className="w-4 h-4" /></Button>{activeMenu === ticket.id && <div className="absolute right-0 top-8 w-32 bg-white rounded-md shadow-lg border border-slate-200 z-10 py-1"><button disabled={!!processing} onClick={() => decide(ticket, 'approve')} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50">Accept</button><button disabled={!!processing} onClick={() => decide(ticket, 'reject')} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50">Reject</button></div>}</div></td></tr>)}
     </tbody></table></div>
     <div className="flex items-center justify-between p-4 border-t border-slate-100 mt-auto text-sm text-slate-600"><div>{filtered.length === 0 ? 'Total 0' : `Showing ${(safePage - 1) * PAGE_SIZE + 1}-${Math.min(safePage * PAGE_SIZE, filtered.length)} of ${filtered.length}`}</div><div className="flex items-center gap-2"><span>25/page</span><button disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white disabled:opacity-50"><ChevronLeft className="w-4 h-4" /></button><span className="min-w-16 text-center">Page {safePage} of {totalPages}</span><button disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white disabled:opacity-50"><ChevronRight className="w-4 h-4" /></button></div></div>
   </div>
