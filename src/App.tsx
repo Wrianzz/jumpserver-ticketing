@@ -19,7 +19,7 @@ function AppLayout({ onLogout, userRole, user }: { onLogout: () => void; userRol
   const bypassClickConfirmRef = useRef(false);
   const bypassSubmitConfirmRef = useRef(false);
   const canApprove = userRole === 'admin' || userRole === 'approver';
-  const routeFallback = userRole === 'approver' ? '/approval' : '/create';
+  const routeFallback = '/create';
   const titles: Record<string, string> = { '/create': 'Create JIT Access Request', '/history': 'Request History', '/command-filters': 'Command Filters', '/approval': 'Approvals', '/ticket-flows': 'Ticket Flows' };
   const descriptions: Record<string, string> = { '/create': 'Submit a ticket for temporary privileged access to infrastructure assets.', '/history': 'View and manage your past and current JIT requests.', '/command-filters': 'View and update command filter configurations.', '/approval': 'Review and approve pending access requests.', '/ticket-flows': 'Configure approval workflows for JIT requests.' };
   const displayName = user?.name?.trim() || user?.username || 'Unknown User';
@@ -50,7 +50,7 @@ function AppLayout({ onLogout, userRole, user }: { onLogout: () => void; userRol
     <aside className="w-72 border-r border-slate-200 bg-white p-6 flex flex-col gap-8 shrink-0 hidden md:flex">
       <div className="flex items-center gap-3 pb-2 border-b border-slate-100"><div className="w-8 h-8 bg-[#009688] rounded-md flex items-center justify-center shrink-0"><div className="w-4 h-4 border-2 border-white rotate-45" /></div><span className="text-lg font-bold tracking-tight text-slate-800">JumpServer <br /><span className="text-[#009688]">Ticketing Portal</span></span></div>
       <div className="flex flex-col gap-4"><h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Navigation</h3><nav className="flex flex-col gap-1">
-        {userRole !== 'approver' && <><NavLink to="/create" className={navClass}><PlusCircle className="w-4 h-4" />New JIT Request</NavLink><NavLink to="/history" className={navClass}><ClipboardList className="w-4 h-4" />Request History</NavLink></>}
+        <NavLink to="/create" className={navClass}><PlusCircle className="w-4 h-4" />New JIT Request</NavLink><NavLink to="/history" className={navClass}><ClipboardList className="w-4 h-4" />Request History</NavLink>
         {userRole === 'admin' && <><NavLink to="/command-filters" className={navClass}><Filter className="w-4 h-4" />Command Filters</NavLink><NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink><NavLink to="/ticket-flows" className={navClass}><Workflow className="w-4 h-4" />Ticket Flows</NavLink></>}
         {userRole === 'approver' && <NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink>}
       </nav></div>
@@ -59,7 +59,7 @@ function AppLayout({ onLogout, userRole, user }: { onLogout: () => void; userRol
     <main className="flex-1 p-4 sm:p-8 bg-slate-50 overflow-y-auto flex flex-col" onSubmitCapture={handleFormSubmitCapture} onClickCapture={handleActionClickCapture}>
       {!['/history','/command-filters','/approval','/ticket-flows'].includes(location.pathname) && <div className="flex items-end justify-between mb-6 shrink-0"><div><h2 className="text-2xl font-bold text-slate-900">{titles[location.pathname] || 'JumpServer Ticketing Portal'}</h2><p className="text-slate-500 text-sm">{descriptions[location.pathname] || ''}</p></div></div>}
       <Routes>
-        {userRole !== 'approver' && <><Route path="/create" element={<JitForm />} /><Route path="/history" element={<History />} /></>}
+        <Route path="/create" element={<JitForm />} /><Route path="/history" element={<History />} />
         {userRole === 'admin' && <><Route path="/command-filters" element={<CommandFilters />} /><Route path="/ticket-flows" element={<TicketFlows />} /></>}
         {canApprove && <Route path="/approval" element={<Approval />} />}
         <Route path="*" element={<Navigate to={routeFallback} replace />} />
