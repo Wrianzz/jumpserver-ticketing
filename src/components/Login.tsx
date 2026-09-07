@@ -27,7 +27,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const authenticate = () => apiClient.post('/api/v1/authentication/auth/', { username, password });
+  const authenticate = () => apiClient.post('/portal-api/auth/login', { username, password });
 
   const completeLogin = async (token: string | undefined, user: JumpServerAuthUser | undefined) => {
     if (!token || !user) { setError('Login failed: Invalid response from JumpServer.'); return false; }
@@ -56,14 +56,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
     } catch (error: any) {
       console.error('Login Error:', error);
       const responseData = error.response?.data;
-      if (responseData?.error === 'mfa_required') {
-        setMfaRequired(true);
-        setOtp('');
-      } else if (error.response?.status === 401) {
-        setError('Username atau password salah!');
-      } else {
-        setError(responseData?.detail || responseData?.msg || responseData?.error || 'Gagal terhubung ke server JumpServer.');
-      }
+      if (responseData?.error === 'mfa_required') { setMfaRequired(true); setOtp(''); }
+      else if (error.response?.status === 401) setError('Username atau password salah!');
+      else setError(responseData?.detail || responseData?.msg || responseData?.error || 'Gagal terhubung ke server JumpServer.');
     } finally { setLoading(false); }
   };
 
@@ -72,7 +67,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
     if (!/^\d{6}$/.test(otp)) { setError('Masukkan kode OTP 6 digit.'); return; }
     setLoading(true);
     try {
-      await apiClient.post('/api/v1/authentication/mfa/challenge/', { type: 'otp', code: otp });
+      await apiClient.post('/portal-api/auth/mfa/challenge', { type: 'otp', code: otp });
       const authResponse = await authenticate();
       if (authResponse.data?.error === 'mfa_required') { setError('MFA sudah diverifikasi, tetapi sesi autentikasi belum selesai. Silakan coba lagi.'); return; }
       const { token, user } = extractAuthData(authResponse.data);
