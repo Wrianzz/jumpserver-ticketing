@@ -46,14 +46,32 @@ app.post('/portal-api/tickets', requireAuth, async (req: Request<{}, {}, TicketR
 function extractResults(data: any): any[] { return Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : []; }
 function configuredTeamNames(names: string[]): Set<string> { const normalized = names.map((name) => name.trim().toLowerCase()).filter(Boolean); if (TEAM_GROUPS.size > 0) return new Set(normalized.filter((name) => TEAM_GROUPS.has(name))); return new Set(normalized.filter((name) => !TEAM_GROUPS_IGNORE.has(name))); }
 
+async function getAuthenticatedUser(req: Request): Promise<UserSummary> {
+  const response = await axios.get(`${JUMPSERVER_URL}/api/v1/users/profile/`, {
+    headers: getJumpServerHeaders(req),
+    timeout: 15000
+  });
+  const profile = response.data?.data || response.data;
+  if (!profile?.id) throw new Error('JumpServer profile response does not contain a user id');
+
+  const portalUserId = req.header('x-portal-user-id')?.trim();
+  if (portalUserId && String(portalUserId) !== String(profile.id)) {
+    console.warn('Portal user id mismatch; using authenticated JumpServer profile instead:', {
+      portalUserId,
+      authenticatedUserId: profile.id,
+      username: profile.username
+    });
+  }
+
+  return { id: String(profile.id), username: profile.username, name: profile.name };
+}
+
 async function findUser(req: Request, identifier: string, cache: Map<string, UserSummary | null>): Promise<UserSummary | null> {
   const rawIdentifier = identifier.trim();
   const key = rawIdentifier.toLowerCase();
   if (!key) return null;
   if (cache.has(key)) return cache.get(key)!;
 
-  // JumpServer serializes the applicant ForeignKey using User.__str__(),
-  // commonly as "Name(username)". Prefer the username inside parentheses.
   const usernameMatch = rawIdentifier.match(/\(([^()]+)\)\s*$/);
   const candidates = [usernameMatch?.[1]?.trim(), rawIdentifier, rawIdentifier.replace(/\s*\([^()]+\)\s*$/, '').trim()]
     .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
@@ -76,9 +94,6 @@ async function findUser(req: Request, identifier: string, cache: Map<string, Use
 async function getTeamGroups(req: Request, userId: string, cache: Map<string, Set<string>>): Promise<Set<string>> {
   if (cache.has(userId)) return cache.get(userId)!;
 
-  // Read the user's groups from the user detail serializer. The relation-list
-  // endpoint is not reliable for this check because its filtering/pagination
-  // can produce incomplete group membership for individual users.
   const userResponse = await axios.get(`${JUMPSERVER_URL}/api/v1/users/users/${encodeURIComponent(userId)}/`, {
     headers: getJumpServerHeaders(req),
     timeout: 15000
@@ -92,8 +107,6 @@ async function getTeamGroups(req: Request, userId: string, cache: Map<string, Se
       .map((group: any) => typeof group === 'string' ? group : group?.name || group?.display || group?.label)
       .filter((name: unknown): name is string => typeof name === 'string' && name.trim().length > 0);
   } else {
-    // Compatibility fallback for JumpServer versions/serializers that omit
-    // `groups` from the user detail response.
     const relationResponse = await axios.get(`${JUMPSERVER_URL}/api/v1/users/users-groups-relations/`, {
       headers: getJumpServerHeaders(req),
       params: { user: userId, limit: 200 },
@@ -113,7 +126,7 @@ async function getTeamGroups(req: Request, userId: string, cache: Map<string, Se
 function hasTeamIntersection(left: Set<string>, right: Set<string>): boolean { for (const name of left) if (right.has(name)) return true; return false; }
 
 async function canCurrentUserSeeTicket(req: Request, ticket: any, currentUserId: string, userCache: Map<string, UserSummary | null>, groupCache: Map<string, Set<string>>): Promise<boolean> {
-  if (ticket?.state?.value !== 'pending') return false;
+  if (ticket?.state?.value !== 'pending' && ticket?.state !== 'pending') return false;
   const currentStep = Array.isArray(ticket?.process_map) ? ticket.process_map.find((step: any) => step?.state === 'pending') : null;
   if (!currentStep?.assignees?.some((id: string) => String(id) === String(currentUserId))) return false;
   const applicant = String(ticket?.applicant || '').trim();
@@ -126,9 +139,50 @@ async function canCurrentUserSeeTicket(req: Request, ticket: any, currentUserId:
   return allowed;
 }
 
+async function fetchPendingTickets(req: Request): Promise<any[]> {
+  const pageSize = 200;
+  const maxTickets = 5000;
+  const tickets: any[] = [];
+  let offset = 0;
+
+  while (tickets.length < maxTickets) {
+    const response = await axios.get(`${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/`, {
+      headers: getJumpServerHeaders(req),
+      params: {
+        state: 'pending',
+        ordering: '-date_created',
+        limit: pageSize,
+        offset
+      },
+      timeout: 15000
+    });
+
+    const page = extractResults(response.data);
+    tickets.push(...page);
+
+    console.log('Approval ticket page:', {
+      offset,
+      received: page.length,
+      totalCollected: tickets.length,
+      firstTicket: page[0]?.id,
+      firstDateCreated: page[0]?.date_created,
+      lastTicket: page[page.length - 1]?.id,
+      lastDateCreated: page[page.length - 1]?.date_created
+    });
+
+    if (Array.isArray(response.data) || page.length < pageSize) break;
+    if (typeof response.data?.next === 'undefined' && typeof response.data?.count !== 'number') break;
+    if (response.data?.next === null) break;
+
+    offset += pageSize;
+  }
+
+  return tickets.slice(0, maxTickets);
+}
+
 async function assertApprovalAccess(req: Request, ticketId: string): Promise<{ allowed: boolean; ticket?: any; reason?: string }> {
-  const currentUserId = req.header('x-portal-user-id')?.trim();
-  if (!currentUserId) return { allowed: false, reason: 'Portal user identity is missing. Please sign in again.' };
+  const currentUser = await getAuthenticatedUser(req);
+  const currentUserId = currentUser.id;
   const userCache = new Map<string, UserSummary | null>();
   const groupCache = new Map<string, Set<string>>();
   const detailResponse = await axios.get(`${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/${encodeURIComponent(ticketId)}/`, { headers: getJumpServerHeaders(req), timeout: 15000 });
@@ -137,7 +191,47 @@ async function assertApprovalAccess(req: Request, ticketId: string): Promise<{ a
   return { allowed, ticket, reason: allowed ? undefined : 'You are not authorized to access this approval request.' };
 }
 
-async function listTickets(req: Request, res: Response, state?: string) { try { if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' }); const currentUserId = state === 'pending' ? req.header('x-portal-user-id')?.trim() : undefined; if (state === 'pending' && !currentUserId) return res.status(400).json({ success: false, message: 'Portal user identity is missing. Please sign in again.' }); const query = state === 'pending' ? `?limit=200&assignees__id=${encodeURIComponent(currentUserId!)}` : '?limit=200'; const response = await axios.get(`${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/${query}`, { headers: getJumpServerHeaders(req), timeout: 15000 }); const tickets = extractResults(response.data); const filtered = state ? tickets.filter((ticket: any) => ticket?.state?.value === state) : tickets; if (state !== 'pending') return res.json({ success: true, count: filtered.length, tickets: filtered }); const userCache = new Map<string, UserSummary | null>(); const groupCache = new Map<string, Set<string>>(); const visible = []; for (const ticket of filtered) { if (await canCurrentUserSeeTicket(req, ticket, currentUserId!, userCache, groupCache)) visible.push(ticket); } return res.json({ success: true, count: visible.length, tickets: visible }); } catch (error) { const axiosError = error as AxiosError; if (axiosError.response) return res.status(axiosError.response.status).json({ success: false, message: state ? 'Failed to load approval requests from JumpServer' : 'Failed to load request history from JumpServer', details: axiosError.response.data }); console.error('List tickets error:', error); return res.status(500).json({ success: false, message: state ? 'Failed to load approval requests' : 'Failed to load request history' }); } }
+async function listTickets(req: Request, res: Response, state?: string) {
+  try {
+    if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
+
+    if (state !== 'pending') {
+      const response = await axios.get(`${JUMPSERVER_URL}/api/v1/tickets/apply-asset-tickets/`, {
+        headers: getJumpServerHeaders(req),
+        params: { limit: 200, ordering: '-date_created' },
+        timeout: 15000
+      });
+      const tickets = extractResults(response.data);
+      const filtered = state ? tickets.filter((ticket: any) => ticket?.state?.value === state || ticket?.state === state) : tickets;
+      return res.json({ success: true, count: filtered.length, tickets: filtered });
+    }
+
+    const currentUser = await getAuthenticatedUser(req);
+    const currentUserId = currentUser.id;
+    console.log('Loading approvals for authenticated user:', currentUser);
+
+    // Do not rely on JumpServer's assignees__id query parameter here. Some
+    // JumpServer versions silently ignore unsupported filter parameters, which
+    // made the portal receive unrelated/old tickets. Fetch pending tickets in
+    // deterministic newest-first pages and enforce current-step assignee + team
+    // membership locally below.
+    const pendingTickets = await fetchPendingTickets(req);
+    const userCache = new Map<string, UserSummary | null>();
+    const groupCache = new Map<string, Set<string>>();
+    const visible = [];
+
+    for (const ticket of pendingTickets) {
+      if (await canCurrentUserSeeTicket(req, ticket, currentUserId, userCache, groupCache)) visible.push(ticket);
+    }
+
+    return res.json({ success: true, count: visible.length, tickets: visible });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) return res.status(axiosError.response.status).json({ success: false, message: state ? 'Failed to load approval requests from JumpServer' : 'Failed to load request history from JumpServer', details: axiosError.response.data });
+    console.error('List tickets error:', error);
+    return res.status(500).json({ success: false, message: state ? 'Failed to load approval requests' : 'Failed to load request history' });
+  }
+}
 app.get('/portal-api/tickets', requireAuth, (req, res) => listTickets(req, res));
 app.get('/portal-api/approvals', requireAuth, (req, res) => listTickets(req, res, 'pending'));
 
