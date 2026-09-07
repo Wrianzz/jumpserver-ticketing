@@ -5,6 +5,10 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // JumpServer's MFA challenge is stateful and stores the password/MFA
+  // verification state in the Django session cookie. Keep that cookie on
+  // auth -> MFA -> token requests instead of creating a fresh session.
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use(
