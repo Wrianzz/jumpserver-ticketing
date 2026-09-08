@@ -33,8 +33,8 @@ async function resolvePortalAccess(): Promise<'admin' | 'approver' | 'user'> {
 }
 
 export function Login({ onLoginSuccess }: LoginProps) {
-  const [username, setUsername] = useState('dummy_admin');
-  const [password, setPassword] = useState('password123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState('');
