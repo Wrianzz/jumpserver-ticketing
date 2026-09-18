@@ -7,9 +7,9 @@ services:
     container_name: jumpserver-ticketing-frontend
     restart: unless-stopped
     ports:
-      - "${TICKETING_PORT:-3000}:80"
+      - "48080:80"
     environment:
-      JUMPSERVER_URL: ${JUMPSERVER_URL:-http://192.168.56.100}
+      JUMPSERVER_URL: ""
     depends_on:
       - backend
 
@@ -24,9 +24,9 @@ services:
       - "3001"
     environment:
       PORT: 3001
-      JUMPSERVER_URL: ${JUMPSERVER_URL:-http://192.168.56.100}
-      JUMPSERVER_ORG_ID: ${JUMPSERVER_ORG_ID:-00000000-0000-0000-0000-000000000002}
-      JUMPSERVER_SERVICE_TOKEN: ${JUMPSERVER_SERVICE_TOKEN:-}
-      JUMPSERVER_TIMEZONE_OFFSET: ${JUMPSERVER_TIMEZONE_OFFSET:-+0700}
-      TEAM_GROUPS: ${TEAM_GROUPS:-}
-      TEAM_GROUPS_IGNORE: ${TEAM_GROUPS_IGNORE:-Default}
+      JUMPSERVER_URL: ""
+      JUMPSERVER_ORG_ID: ""
+      JUMPSERVER_SERVICE_TOKEN: ""
+      JUMPSERVER_TIMEZONE_OFFSET: ""
+      TEAM_GROUPS: ""
+      TEAM_GROUPS_IGNORE: ""
