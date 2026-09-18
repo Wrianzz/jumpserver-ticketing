@@ -139,12 +139,24 @@ export function Approval() {
     setProcessing(`${ticket.id}:${action}`);
     setError('');
     try {
+      const approvalPayload =
+        type === 'apply_asset'
+          ? {
+              apply_nodes: (ticket.apply_nodes || []).map((node) => node.id),
+              apply_assets: (ticket.apply_assets || []).map((asset) => asset.id),
+              apply_accounts: ticket.apply_accounts || [],
+              org_id: ticket.org_id,
+              apply_actions: (ticket.apply_actions || []).map((action) => action.value),
+              apply_date_start: ticket.apply_date_start,
+              apply_date_expired: ticket.apply_date_expired,
+            }
+          : {
+              org_id: ticket.org_id,
+            };
+
       const response = await apiClient.put(
         `/portal-api/approvals/${ticket.id}/${action}`,
-        {
-          type,
-          org_id: ticket.org_id,
-        },
+        approvalPayload,
       );
       if (!response.data?.success) {
         throw new Error(response.data?.message || `Failed to ${action} ticket`);
