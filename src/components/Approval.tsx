@@ -142,6 +142,7 @@ export function Approval() {
       const approvalPayload =
         type === 'apply_asset'
           ? {
+              type: 'apply_asset',
               apply_nodes: (ticket.apply_nodes || []).map((node) => node.id),
               apply_assets: (ticket.apply_assets || []).map((asset) => asset.id),
               apply_accounts: ticket.apply_accounts || [],
@@ -151,6 +152,7 @@ export function Approval() {
               apply_date_expired: ticket.apply_date_expired,
             }
           : {
+              type: 'command_confirm',
               org_id: ticket.org_id,
             };
 
