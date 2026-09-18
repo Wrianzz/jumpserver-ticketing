@@ -7,7 +7,7 @@ import { CommandFilters } from '@/components/CommandFilters';
 import { DataMasking } from '@/components/DataMasking';
 import { Approval } from '@/components/Approval';
 import { TicketFlows } from '@/components/TicketFlows';
-import { AlertTriangle, LogOut, Filter, CheckCircle, Workflow, X } from 'lucide-react';
+import { AlertTriangle, LogOut, Filter, CheckCircle, Workflow, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AuthUser { id: string; username: string; name: string; email: string; }
@@ -17,6 +17,7 @@ const navClass = ({ isActive }: { isActive: boolean }) => `flex items-center gap
 function AppLayout({ onLogout, userRole, user }: { onLogout: () => void; userRole: string | null; user: AuthUser | null; }) {
   const location = useLocation();
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [aclsExpanded, setAclsExpanded] = useState(() => location.pathname === '/command-filters' || location.pathname === '/data-masking');
   const bypassClickConfirmRef = useRef(false);
   const bypassSubmitConfirmRef = useRef(false);
   const canApprove = userRole === 'admin' || userRole === 'approver';
@@ -54,7 +55,28 @@ function AppLayout({ onLogout, userRole, user }: { onLogout: () => void; userRol
       <div className="flex flex-col gap-4"><h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Navigation</h3><nav className="flex flex-col gap-1">
         <NavLink to="/create" className={navClass}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>New JIT Request</NavLink>
         <NavLink to="/history" className={navClass}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a9 9 0 0118 0z" /></svg>Request History</NavLink>
-        {userRole === 'admin' && <><NavLink to="/command-filters" className={navClass}><Filter className="w-4 h-4" />Command Filters</NavLink><NavLink to="/data-masking" className={navClass}><Filter className="w-4 h-4" />Data Masking</NavLink><NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink><NavLink to="/ticket-flows" className={navClass}><Workflow className="w-4 h-4" />Ticket Flows</NavLink></>}
+        {userRole === 'admin' && <>
+          <div>
+            <button
+              type="button"
+              onClick={() => setAclsExpanded((expanded) => !expanded)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md font-medium text-sm transition-all duration-200 cursor-pointer ${location.pathname === '/command-filters' || location.pathname === '/data-masking' ? 'bg-[#009688]/10 text-[#009688]' : 'text-slate-600 hover:bg-slate-50'}`}
+              aria-expanded={aclsExpanded}
+            >
+              <Filter className="w-4 h-4" />
+              <span className="flex-1 text-left">ACLs</span>
+              {aclsExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+            {aclsExpanded && (
+              <div className="ml-4 mt-1 pl-3 border-l border-slate-200 flex flex-col gap-1">
+                <NavLink to="/command-filters" className={navClass}><Filter className="w-4 h-4" />Command Filters</NavLink>
+                <NavLink to="/data-masking" className={navClass}><Filter className="w-4 h-4" />Data Masking</NavLink>
+              </div>
+            )}
+          </div>
+          <NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink>
+          <NavLink to="/ticket-flows" className={navClass}><Workflow className="w-4 h-4" />Ticket Flows</NavLink>
+        </>}
         {userRole === 'approver' && <NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink>}
       </nav></div>
       <div className="mt-auto -mx-2"><div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50"><div className="flex items-center gap-3 overflow-hidden"><div className="w-10 h-10 shrink-0 rounded-full bg-[#009688] text-white flex items-center justify-center font-bold text-sm">{displayName.substring(0, 2).toUpperCase()}</div><div className="flex flex-col overflow-hidden text-left"><span className="text-sm font-semibold text-slate-900 truncate">{displayName}</span><span className="text-xs text-slate-500 truncate">{user?.email || '-'}</span></div></div><Button variant="ghost" size="icon" onClick={() => setConfirmation({ title: 'Log out?', message: 'You will need to sign in again to access the portal.', confirmLabel: 'Log out', destructive: true, onConfirm: onLogout })} className="text-slate-400 hover:text-slate-900 h-8 w-8"><LogOut className="h-4 w-4" /></Button></div></div>
