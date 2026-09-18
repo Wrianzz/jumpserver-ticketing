@@ -141,7 +141,10 @@ export function Approval() {
     try {
       const response = await apiClient.put(
         `/portal-api/approvals/${ticket.id}/${action}`,
-        { type },
+        {
+          type,
+          org_id: ticket.org_id,
+        },
       );
       if (!response.data?.success) {
         throw new Error(response.data?.message || `Failed to ${action} ticket`);
