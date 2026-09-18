@@ -418,7 +418,15 @@ export function Approval() {
                       className="flex items-center justify-between border rounded px-3 py-2"
                     >
                       <span>Level {step.approval_level}</span>
-                      <span className="capitalize">{step.state}</span>
+                      <span className="text-slate-600">
+                        {step.state === 'approved'
+                          ? `Approved by ${step.processor_display || step.processor || 'Unknown'}`
+                          : step.state === 'rejected'
+                            ? `Rejected by ${step.processor_display || step.processor || 'Unknown'}`
+                            : step.state === 'closed'
+                              ? 'Closed'
+                              : step.state}
+                      </span>
                     </div>
                   ))}
                 </div>
