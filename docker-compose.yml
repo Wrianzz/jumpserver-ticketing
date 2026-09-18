@@ -1,0 +1,32 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    container_name: jumpserver-ticketing-frontend
+    restart: unless-stopped
+    ports:
+      - "${TICKETING_PORT:-3000}:80"
+    environment:
+      JUMPSERVER_URL: ${JUMPSERVER_URL:-http://192.168.56.100}
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    container_name: jumpserver-ticketing-backend
+    restart: unless-stopped
+    expose:
+      - "3001"
+    environment:
+      PORT: 3001
+      JUMPSERVER_URL: ${JUMPSERVER_URL:-http://192.168.56.100}
+      JUMPSERVER_ORG_ID: ${JUMPSERVER_ORG_ID:-00000000-0000-0000-0000-000000000002}
+      JUMPSERVER_SERVICE_TOKEN: ${JUMPSERVER_SERVICE_TOKEN:-}
+      JUMPSERVER_TIMEZONE_OFFSET: ${JUMPSERVER_TIMEZONE_OFFSET:-+0700}
+      TEAM_GROUPS: ${TEAM_GROUPS:-}
+      TEAM_GROUPS_IGNORE: ${TEAM_GROUPS_IGNORE:-Default}
