@@ -499,9 +499,28 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
       });
     }
 
+    const upstreamPayload =
+      type === 'apply_asset'
+        ? {
+            apply_nodes: Array.isArray(req.body?.apply_nodes) ? req.body.apply_nodes : [],
+            apply_assets: Array.isArray(req.body?.apply_assets) ? req.body.apply_assets : [],
+            apply_accounts: Array.isArray(req.body?.apply_accounts) ? req.body.apply_accounts : [],
+            org_id: orgId,
+            apply_actions: Array.isArray(req.body?.apply_actions)
+              ? req.body.apply_actions.map((action: any) =>
+                  typeof action === 'string' ? action : action?.value,
+                ).filter(Boolean)
+              : [],
+            apply_date_start: req.body?.apply_date_start,
+            apply_date_expired: req.body?.apply_date_expired,
+          }
+        : {
+            org_id: orgId,
+          };
+
     const response = await axios.put(
       `${JUMPSERVER_URL}${getTicketEndpoint(type)}${encodeURIComponent(req.params.id)}/${action}/`,
-      { org_id: orgId },
+      upstreamPayload,
       {
         headers: { ...getJumpServerHeaders(req), 'Content-Type': 'application/json' },
         timeout: 15000,
