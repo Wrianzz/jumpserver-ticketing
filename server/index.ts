@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
 import axios, { AxiosError } from 'axios';
+import https from 'node:https';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
@@ -8,6 +9,13 @@ const JUMPSERVER_URL = (process.env.JUMPSERVER_URL || '').replace(/\/$/, '');
 const JUMPSERVER_ORG_ID = process.env.JUMPSERVER_ORG_ID || '00000000-0000-0000-0000-000000000002';
 const JUMPSERVER_TIMEZONE_OFFSET = process.env.JUMPSERVER_TIMEZONE_OFFSET || '+0700';
 const JUMPSERVER_SERVICE_TOKEN = process.env.JUMPSERVER_SERVICE_TOKEN || '';
+const JUMPSERVER_TLS_VERIFY = process.env.JUMPSERVER_TLS_VERIFY !== 'false';
+
+// Allow connections to JumpServer instances using self-signed or expired certificates.
+// Keep TLS verification enabled by default; set JUMPSERVER_TLS_VERIFY=false only for trusted internal endpoints.
+if (!JUMPSERVER_TLS_VERIFY) {
+  axios.defaults.httpsAgent = new https.Agent({ rejectUnauthorized: false });
+}
 
 const APPLY_ASSET_TICKETS_ENDPOINT = '/api/v1/tickets/apply-asset-tickets/';
 const COMMAND_REVIEW_TICKETS_ENDPOINT = '/api/v1/tickets/apply-command-tickets/';
