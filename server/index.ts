@@ -480,6 +480,17 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
       });
     }
 
+    const orgId = typeof req.body?.org_id === 'string' && req.body.org_id.trim()
+      ? req.body.org_id.trim()
+      : JUMPSERVER_ORG_ID;
+
+    if (!orgId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization ID is required',
+      });
+    }
+
     const access = await assertApprovalAccess(req, req.params.id, type);
     if (!access.allowed) {
       return res.status(403).json({
@@ -490,7 +501,7 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
 
     const response = await axios.put(
       `${JUMPSERVER_URL}${getTicketEndpoint(type)}${encodeURIComponent(req.params.id)}/${action}/`,
-      {},
+      { org_id: orgId },
       {
         headers: { ...getJumpServerHeaders(req), 'Content-Type': 'application/json' },
         timeout: 15000,
