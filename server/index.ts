@@ -502,6 +502,7 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
     const upstreamPayload =
       type === 'apply_asset'
         ? {
+            type: 'apply_asset',
             apply_nodes: Array.isArray(req.body?.apply_nodes) ? req.body.apply_nodes : [],
             apply_assets: Array.isArray(req.body?.apply_assets) ? req.body.apply_assets : [],
             apply_accounts: Array.isArray(req.body?.apply_accounts) ? req.body.apply_accounts : [],
@@ -515,6 +516,7 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
             apply_date_expired: req.body?.apply_date_expired,
           }
         : {
+            type: 'command_confirm',
             org_id: orgId,
           };
 
