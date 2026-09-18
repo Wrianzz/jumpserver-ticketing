@@ -4,6 +4,7 @@ import { Login } from '@/components/Login';
 import { JitForm } from '@/components/JitForm';
 import { History } from '@/components/History';
 import { CommandFilters } from '@/components/CommandFilters';
+import { DataMasking } from '@/components/DataMasking';
 import { Approval } from '@/components/Approval';
 import { TicketFlows } from '@/components/TicketFlows';
 import { AlertTriangle, LogOut, Filter, CheckCircle, Workflow, X } from 'lucide-react';
@@ -20,8 +21,8 @@ function AppLayout({ onLogout, userRole, user }: { onLogout: () => void; userRol
   const bypassSubmitConfirmRef = useRef(false);
   const canApprove = userRole === 'admin' || userRole === 'approver';
   const routeFallback = userRole === 'approver' ? '/approval' : '/create';
-  const titles: Record<string, string> = { '/create': 'Create JIT Access Request', '/history': 'Request History', '/command-filters': 'Command Filters', '/approval': 'Approvals', '/ticket-flows': 'Ticket Flows' };
-  const descriptions: Record<string, string> = { '/create': 'Submit a ticket for temporary privileged access to infrastructure assets.', '/history': 'View and manage your past and current JIT requests.', '/command-filters': 'View and update command filter configurations.', '/approval': 'Review and approve pending access requests.', '/ticket-flows': 'Configure approval workflows for JIT requests.' };
+  const titles: Record<string, string> = { '/create': 'Create JIT Access Request', '/history': 'Request History', '/command-filters': 'Command Filters', '/data-masking': 'Data Masking', '/approval': 'Approvals', '/ticket-flows': 'Ticket Flows' };
+  const descriptions: Record<string, string> = { '/create': 'Submit a ticket for temporary privileged access to infrastructure assets.', '/history': 'View and manage your past and current JIT requests.', '/command-filters': 'View and update command filter configurations.', '/data-masking': 'View and update data masking configurations.', '/approval': 'Review and approve pending access requests.', '/ticket-flows': 'Configure approval workflows for JIT requests.' };
   const displayName = user?.name?.trim() || user?.username || 'Unknown User';
 
   const closeConfirmation = () => setConfirmation(null);
@@ -53,17 +54,17 @@ function AppLayout({ onLogout, userRole, user }: { onLogout: () => void; userRol
       <div className="flex flex-col gap-4"><h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Navigation</h3><nav className="flex flex-col gap-1">
         <NavLink to="/create" className={navClass}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>New JIT Request</NavLink>
         <NavLink to="/history" className={navClass}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a9 9 0 0118 0z" /></svg>Request History</NavLink>
-        {userRole === 'admin' && <><NavLink to="/command-filters" className={navClass}><Filter className="w-4 h-4" />Command Filters</NavLink><NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink><NavLink to="/ticket-flows" className={navClass}><Workflow className="w-4 h-4" />Ticket Flows</NavLink></>}
+        {userRole === 'admin' && <><NavLink to="/command-filters" className={navClass}><Filter className="w-4 h-4" />Command Filters</NavLink><NavLink to="/data-masking" className={navClass}><Filter className="w-4 h-4" />Data Masking</NavLink><NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink><NavLink to="/ticket-flows" className={navClass}><Workflow className="w-4 h-4" />Ticket Flows</NavLink></>}
         {userRole === 'approver' && <NavLink to="/approval" className={navClass}><CheckCircle className="w-4 h-4" />Approvals</NavLink>}
       </nav></div>
       <div className="mt-auto -mx-2"><div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50"><div className="flex items-center gap-3 overflow-hidden"><div className="w-10 h-10 shrink-0 rounded-full bg-[#009688] text-white flex items-center justify-center font-bold text-sm">{displayName.substring(0, 2).toUpperCase()}</div><div className="flex flex-col overflow-hidden text-left"><span className="text-sm font-semibold text-slate-900 truncate">{displayName}</span><span className="text-xs text-slate-500 truncate">{user?.email || '-'}</span></div></div><Button variant="ghost" size="icon" onClick={() => setConfirmation({ title: 'Log out?', message: 'You will need to sign in again to access the portal.', confirmLabel: 'Log out', destructive: true, onConfirm: onLogout })} className="text-slate-400 hover:text-slate-900 h-8 w-8"><LogOut className="h-4 w-4" /></Button></div></div>
     </aside>
     <main className="flex-1 p-4 sm:p-8 bg-slate-50 overflow-y-auto flex flex-col" onSubmitCapture={handleFormSubmitCapture} onClickCapture={handleActionClickCapture}>
-      {!['/history','/command-filters','/approval','/ticket-flows'].includes(location.pathname) && <div className="flex items-end justify-between mb-6 shrink-0"><div><h2 className="text-2xl font-bold text-slate-900">{titles[location.pathname] || 'JumpServer Ticketing Portal'}</h2><p className="text-slate-500 text-sm">{descriptions[location.pathname] || ''}</p></div></div>}
+      {!['/history','/command-filters','/data-masking','/approval','/ticket-flows'].includes(location.pathname) && <div className="flex items-end justify-between mb-6 shrink-0"><div><h2 className="text-2xl font-bold text-slate-900">{titles[location.pathname] || 'JumpServer Ticketing Portal'}</h2><p className="text-slate-500 text-sm">{descriptions[location.pathname] || ''}</p></div></div>}
       <Routes>
         <Route path="/create" element={<JitForm />} />
         <Route path="/history" element={<History />} />
-        {userRole === 'admin' && <><Route path="/command-filters" element={<CommandFilters />} /><Route path="/ticket-flows" element={<TicketFlows />} /></>}
+        {userRole === 'admin' && <><Route path="/command-filters" element={<CommandFilters />} /><Route path="/data-masking" element={<DataMasking />} /><Route path="/ticket-flows" element={<TicketFlows />} /></>}
         {canApprove && <Route path="/approval" element={<Approval />} />}
         <Route path="*" element={<Navigate to={routeFallback} replace />} />
       </Routes>
