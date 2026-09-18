@@ -321,9 +321,9 @@ export function DataMasking() {
 
           <section className="pb-8 border-b border-dashed border-slate-200 space-y-5"><h3 className="font-semibold text-slate-800">Rules</h3>
             <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Fields pattern</label><Input value={form.fieldsPattern} onChange={(e) => setForm({ ...form, fieldsPattern: e.target.value })} /></div>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Masking method</label><div className="relative max-w-xl"><select className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm" value={form.maskingMethod} onChange={(e) => setForm({ ...form, maskingMethod: e.target.value as FormState['maskingMethod'] })}>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Masking method</label><select className="w-full max-w-xl h-10 px-3 rounded-md border border-slate-200 bg-white text-sm" value={form.maskingMethod} onChange={(e) => setForm({ ...form, maskingMethod: e.target.value as FormState['maskingMethod'] })}>
               <option value="fixed_char">Fixed Character Replacement</option><option value="hide_middle">Hide Middle Characters</option><option value="keep_prefix">Keep Prefix Only</option><option value="keep_suffix">Keep Suffix Only</option>
-            </select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" /></div></div>
+            </select></div>
             <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Mask pattern</label><Input value={form.maskPattern} onChange={(e) => setForm({ ...form, maskPattern: e.target.value })} /></div>
           </section>
 
