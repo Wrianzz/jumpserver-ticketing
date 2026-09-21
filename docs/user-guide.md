@@ -13,7 +13,7 @@ JumpServer remains the source of truth for users, assets, accounts, tickets, ACL
 | Sign In / MFA | Authenticate with JumpServer credentials | All users |
 | New JIT Request | Request temporary privileged access to assets | User / Approver / Admin |
 | Request History | Track submitted requests and cancel pending requests | User / Approver / Admin |
-| Approvals | Review pending requests and approve/reject them | Approver / Admin |
+| Approvals | Review asset-access and command-review requests and approve/reject them | Approver / Admin |
 | Ticket Flows | Configure one- or two-level asset approval | Admin |
 | Command Filters | View and manage command-filter ACLs | Admin |
 | Data Masking | View and manage data-masking ACLs | Admin |
@@ -39,7 +39,7 @@ Admins can access:
 
 ### Approver
 
-A user is treated as an approver when their JumpServer user ID is included in an apply_asset Ticket Flow approval rule.
+A user is treated as an approver when their JumpServer user ID is included in an applicable Ticket Flow approval rule. The portal recognizes both asset-approval (`apply_asset`) and command-review (`command_confirm`) flows.
 
 Approvers can access:
 
@@ -74,11 +74,12 @@ The following should be prepared in JumpServer before users start submitting req
 2. Target assets are available and accessible to the relevant users.
 3. Accounts are configured on the target assets.
 4. The required JumpServer organization is available.
-5. An apply_asset Ticket Flow exists.
-6. Approvers are assigned to the Ticket Flow when approval is required.
-7. The portal backend is configured with a valid JUMPSERVER_URL.
-8. JUMPSERVER_ORG_ID is set to the organization used by the portal.
-9. JUMPSERVER_SERVICE_TOKEN is configured when the portal needs to read Ticket Flow configuration for role resolution.
+5. An apply_asset Ticket Flow exists for asset-access approvals.
+6. A command_confirm Ticket Flow exists when command-review approvals are used.
+7. Approvers/reviewers are assigned to the appropriate JumpServer configuration when approval is required.
+8. The portal backend is configured with a valid JUMPSERVER_URL.
+9. JUMPSERVER_ORG_ID is set to the organization used by the portal.
+10. JUMPSERVER_SERVICE_TOKEN is configured when the portal needs to read Ticket Flow configuration for role resolution.
 
 For an internal JumpServer installation using a self-signed or expired certificate, the backend can be configured with:
 
@@ -300,7 +301,7 @@ This means adding a user as a Ticket Flow approver also affects the navigation t
 
 ---
 
-# 8. Approving a Request
+# 9. Approving a Request
 
 Users who are assigned to the current pending approval step can access:
 
@@ -363,7 +364,7 @@ The backend also verifies that the current user is assigned to the current pendi
 
 ---
 
-# 9. Approval Security Model
+# 10. Approval Security Model
 
 Approval authorization is enforced on the backend.
 
@@ -381,7 +382,7 @@ Before an approval action is sent to JumpServer, the backend:
 
 ---
 
-# 10. Request History
+# 11. Request History
 
 Open:
 
@@ -417,7 +418,7 @@ Only pending requests expose the Cancel action.
 
 ---
 
-# 11. Command Filters
+# 12. Command Filters
 
 Only admins can access:
 
@@ -472,7 +473,7 @@ The portal writes these changes directly to the JumpServer ACL API.
 
 ---
 
-# 12. Data Masking
+# 13. Data Masking
 
 Only admins can access:
 
@@ -558,7 +559,7 @@ The rule is deleted through the JumpServer API.
 
 ---
 
-# 13. Typical End-to-End Scenario
+# 14. Typical End-to-End Scenario
 
 ## Step 1 — Administrator prepares the workflow
 
@@ -617,7 +618,7 @@ The requester opens Request History and can see the ticket state and ticket numb
 
 ---
 
-# 14. Common Problems
+# 15. Common Problems
 
 ## Login fails
 
@@ -687,7 +688,7 @@ and use a certificate that can be validated by the backend.
 
 ---
 
-# 15. Deployment Reference
+# 16. Deployment Reference
 
 The project can be deployed using Docker Compose.
 
@@ -729,7 +730,7 @@ Do not commit production service tokens or credentials to the repository.
 
 ---
 
-# 16. Architecture
+# 17. Architecture
 
 The portal uses a layered architecture:
 
@@ -761,7 +762,7 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ---
 
-# 17. Security Notes
+# 18. Security Notes
 
 - Use HTTPS for the portal in production.
 - Keep JUMPSERVER_SERVICE_TOKEN server-side only.
@@ -775,14 +776,14 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ---
 
-# 18. Quick Reference
+# 19. Quick Reference
 
 | Task | Navigation |
 |---|---|
 | Request temporary access | New JIT Request |
 | Check own requests | Request History |
 | Cancel pending request | Request History → Cancel |
-| Approve/reject request | Approvals |
+| Approve/reject asset request | Approvals |\n| Review a command | Approvals → Command review |
 | Configure approval levels | Ticket Flows |
 | Configure command filtering | ACLs → Command Filters |
 | Configure data masking | ACLs → Data Masking |
@@ -790,6 +791,10 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ## Request lifecycle
 
+    Create request
+         ↓
+    JumpServer ticket created
+         ↓
     Create request
          ↓
     JumpServer ticket created
@@ -803,3 +808,17 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
     JumpServer processes final ticket state
          ↓
     User tracks the result in Request History
+
+Command review lifecycle:
+
+    User executes command
+         ↓
+    Command Filter matches
+         ↓
+    Review action
+         ↓
+    Command review ticket
+         ↓
+    Reviewer approves / rejects
+         ↓
+    JumpServer processes the command-review result
