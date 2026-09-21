@@ -301,7 +301,84 @@ This means adding a user as a Ticket Flow approver also affects the navigation t
 
 ---
 
-# 9. Approving a Request
+
+# 8. Command Review Approval
+
+Command Review Approval is used when a command-filter rule is configured with the **Review** action.
+
+The flow is:
+
+    User starts a session
+          ↓
+    User executes a command
+          ↓
+    Command Filter matches
+          ↓
+    Action = Review
+          ↓
+    Command Review ticket is created
+          ↓
+    Reviewer / approver opens Approvals
+          ↓
+    Approve / Reject
+          ↓
+    JumpServer processes the command-review result
+
+## Configure Command Review
+
+Only admins can configure command filters.
+
+Open:
+
+    ACLs → Command Filters
+
+Create or edit a command-filter rule and configure:
+
+- Users
+- Assets
+- Accounts
+- Command Groups
+- Action: Review
+- Reviewers / Recipients
+- Active / inactive
+- Description
+
+When the command matches the rule, JumpServer creates a command-review ticket.
+
+## Review the Command
+
+Open:
+
+    Approvals
+
+Command-review tickets appear in the same approval queue as asset-access requests.
+
+Select Details to inspect:
+
+- Organization
+- Type
+- Applicant
+- Comment
+- Run user
+- Asset
+- Account
+- Command
+- Session
+- Command filter
+
+The reviewer can then select:
+
+- Approve
+- Reject
+
+The portal sends the decision to the corresponding JumpServer command-review ticket endpoint.
+
+## Authorization
+
+The backend verifies that the authenticated user is assigned to the current pending approval step before allowing the decision.
+
+The portal therefore does not rely only on hiding or showing the Approve / Reject buttons in the frontend.
+# 10. Approving a Request
 
 Users who are assigned to the current pending approval step can access:
 
@@ -364,7 +441,7 @@ The backend also verifies that the current user is assigned to the current pendi
 
 ---
 
-# 10. Approval Security Model
+# 11. Approval Security Model
 
 Approval authorization is enforced on the backend.
 
@@ -382,7 +459,7 @@ Before an approval action is sent to JumpServer, the backend:
 
 ---
 
-# 11. Request History
+# 12. Request History
 
 Open:
 
@@ -418,7 +495,7 @@ Only pending requests expose the Cancel action.
 
 ---
 
-# 12. Command Filters
+# 13. Command Filters
 
 Only admins can access:
 
@@ -473,7 +550,7 @@ The portal writes these changes directly to the JumpServer ACL API.
 
 ---
 
-# 13. Data Masking
+# 14. Data Masking
 
 Only admins can access:
 
@@ -559,7 +636,7 @@ The rule is deleted through the JumpServer API.
 
 ---
 
-# 14. Typical End-to-End Scenario
+# 15. Typical End-to-End Scenario
 
 ## Step 1 — Administrator prepares the workflow
 
@@ -618,7 +695,7 @@ The requester opens Request History and can see the ticket state and ticket numb
 
 ---
 
-# 15. Common Problems
+# 16. Common Problems
 
 ## Login fails
 
@@ -688,7 +765,7 @@ and use a certificate that can be validated by the backend.
 
 ---
 
-# 16. Deployment Reference
+# 17. Deployment Reference
 
 The project can be deployed using Docker Compose.
 
@@ -703,11 +780,11 @@ The backend runs the Express API service on port 3001 inside the Docker network.
 
 The current compose file maps the frontend as:
 
-    48080:80
+    38080:80
 
 Therefore the portal is accessed through:
 
-    http://<server-ip>:48080
+    http://<server-ip>:38080
 
 The exact host port can be changed in docker-compose.yml.
 
@@ -730,7 +807,7 @@ Do not commit production service tokens or credentials to the repository.
 
 ---
 
-# 17. Architecture
+# 18. Architecture
 
 The portal uses a layered architecture:
 
@@ -762,7 +839,7 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ---
 
-# 18. Security Notes
+# 19. Security Notes
 
 - Use HTTPS for the portal in production.
 - Keep JUMPSERVER_SERVICE_TOKEN server-side only.
@@ -776,7 +853,7 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ---
 
-# 19. Quick Reference
+# 20. Quick Reference
 
 | Task | Navigation |
 |---|---|
@@ -791,10 +868,6 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ## Request lifecycle
 
-    Create request
-         ↓
-    JumpServer ticket created
-         ↓
     Create request
          ↓
     JumpServer ticket created
