@@ -10,6 +10,18 @@ const JUMPSERVER_ORG_ID = process.env.JUMPSERVER_ORG_ID || '00000000-0000-0000-0
 const JUMPSERVER_TIMEZONE_OFFSET = process.env.JUMPSERVER_TIMEZONE_OFFSET || '+0700';
 const JUMPSERVER_SERVICE_TOKEN = process.env.JUMPSERVER_SERVICE_TOKEN || '';
 const JUMPSERVER_TLS_VERIFY = process.env.JUMPSERVER_TLS_VERIFY !== 'false';
+const TEAM_GROUPS = new Set(
+  (process.env.TEAM_GROUPS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
+const TEAM_GROUPS_IGNORE = new Set(
+  (process.env.TEAM_GROUPS_IGNORE || 'Default')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
 
 // Allow connections to JumpServer instances using self-signed or expired certificates.
 // Keep TLS verification enabled by default; set JUMPSERVER_TLS_VERIFY=false only for trusted internal endpoints.
@@ -276,6 +288,161 @@ async function fetchTicketFlows(): Promise<any[]> {
   return extractResults(response.data);
 }
 
+type JumpServerUser = {
+  id?: string;
+  username?: string;
+  name?: string;
+  display_name?: string;
+  [key: string]: any;
+};
+
+function normalizeTeamGroupNames(groups: any[]): string[] {
+  return groups
+    .map((group: any) => typeof group === 'string' ? group : group?.name)
+    .filter((name: any): name is string => typeof name === 'string' && name.trim().length > 0)
+    .map((name) => name.trim())
+    .filter((name) => !TEAM_GROUPS_IGNORE.has(name))
+    .filter((name) => TEAM_GROUPS.size === 0 || TEAM_GROUPS.has(name));
+}
+
+async function fetchUserGroups(userId: string): Promise<string[]> {
+  if (!JUMPSERVER_SERVICE_TOKEN) {
+    throw new Error('JUMPSERVER_SERVICE_TOKEN is required to resolve team membership');
+  }
+
+  const response = await axios.get(`${JUMPSERVER_URL}/api/v1/users/groups/`, {
+    headers: getJumpServerServiceHeaders(),
+    params: { user_id: userId, limit: 200 },
+    timeout: 15000,
+  });
+
+  return normalizeTeamGroupNames(extractResults(response.data));
+}
+
+async function fetchAllUsers(): Promise<JumpServerUser[]> {
+  if (!JUMPSERVER_SERVICE_TOKEN) {
+    throw new Error('JUMPSERVER_SERVICE_TOKEN is required to resolve ticket applicants');
+  }
+
+  const users: JumpServerUser[] = [];
+  const pageSize = 200;
+  let offset = 0;
+  const maxUsers = 10000;
+
+  while (users.length < maxUsers) {
+    const response = await axios.get(`${JUMPSERVER_URL}/api/v1/users/users/`, {
+      headers: getJumpServerServiceHeaders(),
+      params: { limit: pageSize, offset },
+      timeout: 15000,
+    });
+
+    const page = extractResults(response.data);
+    users.push(...page);
+
+    if (Array.isArray(response.data) || page.length < pageSize) break;
+    if (response.data?.next === null) break;
+    if (typeof response.data?.next === 'undefined' && typeof response.data?.count !== 'number') break;
+    offset += pageSize;
+  }
+
+  return users.slice(0, maxUsers);
+}
+
+function ticketApplicantCandidates(ticket: any): string[] {
+  const candidates: string[] = [];
+  const applicant = ticket?.applicant;
+
+  if (typeof ticket?.applicant_id === 'string') candidates.push(ticket.applicant_id);
+  if (typeof ticket?.applicant_username === 'string') candidates.push(ticket.applicant_username);
+
+  if (applicant && typeof applicant === 'object') {
+    for (const value of [applicant.id, applicant.username, applicant.name, applicant.display_name]) {
+      if (typeof value === 'string' && value.trim()) candidates.push(value.trim());
+    }
+  } else if (typeof applicant === 'string' && applicant.trim()) {
+    candidates.push(applicant.trim());
+  }
+
+  for (const key of ['creator', 'user', 'created_by']) {
+    const value = ticket?.[key];
+    if (value && typeof value === 'object') {
+      for (const candidate of [value.id, value.username, value.name, value.display_name]) {
+        if (typeof candidate === 'string' && candidate.trim()) candidates.push(candidate.trim());
+      }
+    } else if (typeof value === 'string' && value.trim()) {
+      candidates.push(value.trim());
+    }
+  }
+
+  return [...new Set(candidates)];
+}
+
+function resolveTicketApplicantId(ticket: any, users: JumpServerUser[]): string | null {
+  const candidates = ticketApplicantCandidates(ticket).map((value) => value.toLowerCase());
+
+  for (const user of users) {
+    const id = typeof user.id === 'string' ? user.id : '';
+    const username = typeof user.username === 'string' ? user.username : '';
+    const name = typeof user.name === 'string' ? user.name : '';
+    const displayName = typeof user.display_name === 'string' ? user.display_name : '';
+    const labels = [
+      id,
+      username,
+      name,
+      displayName,
+      name && username ? `${name}(${username})` : '',
+      displayName && username ? `${displayName}(${username})` : '',
+    ]
+      .filter(Boolean)
+      .map((value) => value.toLowerCase());
+
+    if (candidates.some((candidate) => labels.includes(candidate))) {
+      return id || null;
+    }
+  }
+
+  return null;
+}
+
+async function filterRequestHistoryTickets(
+  tickets: any[],
+  currentUser: UserSummary,
+  role: 'admin' | 'approver' | 'user',
+): Promise<any[]> {
+  if (role === 'admin') return tickets;
+
+  const users = await fetchAllUsers();
+  const currentUserId = String(currentUser.id);
+  const currentUserTeamGroups = role === 'approver'
+    ? await fetchUserGroups(currentUserId)
+    : [];
+
+  const visible: any[] = [];
+
+  for (const ticket of tickets) {
+    const applicantId = resolveTicketApplicantId(ticket, users);
+
+    // Fail closed if the portal cannot reliably identify the ticket owner.
+    if (!applicantId) continue;
+
+    // Every non-admin can always see their own request history.
+    if (applicantId === currentUserId) {
+      visible.push(ticket);
+      continue;
+    }
+
+    // Normal users cannot see other users' history.
+    if (role !== 'approver' || currentUserTeamGroups.length === 0) continue;
+
+    const applicantTeamGroups = await fetchUserGroups(applicantId);
+    const sameTeam = applicantTeamGroups.some((group) => currentUserTeamGroups.includes(group));
+
+    if (sameTeam) visible.push(ticket);
+  }
+
+  return visible;
+}
+
 async function resolvePortalRole(req: Request, authenticatedUser?: UserSummary): Promise<'admin' | 'approver' | 'user'> {
   const user = authenticatedUser || await getAuthenticatedUser(req);
   if (user.is_superuser === true || user.is_org_admin === true) return 'admin';
@@ -416,15 +583,20 @@ async function listTickets(req: Request, res: Response, state?: string) {
     if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
 
     if (state !== 'pending') {
+      const currentUser = await getAuthenticatedUser(req);
+      const role = await resolvePortalRole(req, currentUser);
+
       const response = await axios.get(`${JUMPSERVER_URL}${APPLY_ASSET_TICKETS_ENDPOINT}`, {
         headers: getJumpServerHeaders(req),
         params: { limit: 200, ordering: '-date_created' },
         timeout: 15000,
       });
       const tickets = extractResults(response.data);
-      const filtered = state
+      const stateFiltered = state
         ? tickets.filter((ticket: any) => getTicketState(ticket) === state)
         : tickets;
+      const filtered = await filterRequestHistoryTickets(stateFiltered, currentUser, role);
+
       return res.json({ success: true, count: filtered.length, tickets: filtered });
     }
 
