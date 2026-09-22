@@ -378,7 +378,7 @@ The portal sends the decision to the corresponding JumpServer command-review tic
 The backend verifies that the authenticated user is assigned to the current pending approval step before allowing the decision.
 
 The portal therefore does not rely only on hiding or showing the Approve / Reject buttons in the frontend.
-# 10. Approving a Request
+# 9. Approving a Request
 
 Users who are assigned to the current pending approval step can access:
 
@@ -441,7 +441,7 @@ The backend also verifies that the current user is assigned to the current pendi
 
 ---
 
-# 11. Approval Security Model
+# 10. Approval Security Model
 
 Approval authorization is enforced on the backend.
 
@@ -459,13 +459,30 @@ Before an approval action is sent to JumpServer, the backend:
 
 ---
 
-# 12. Request History
+# 11. Request History
 
 Open:
 
     Request History
 
-The page shows the user's ticket history retrieved from JumpServer.
+Request History is scoped by role:
+
+| Role | Visible history |
+|---|---|
+| Admin | All ticket history returned from JumpServer |
+| Approver | Own tickets plus tickets submitted by users in the same configured team/group |
+| Normal User | Own tickets only |
+
+For approvers, the backend resolves the approver's JumpServer User Groups and only includes another user's ticket when the applicant shares at least one team group with the approver.
+
+Team groups are controlled by:
+
+    TEAM_GROUPS
+    TEAM_GROUPS_IGNORE
+
+If TEAM_GROUPS is empty, every JumpServer User Group is treated as a team except groups listed in TEAM_GROUPS_IGNORE. The default ignored group is Default.
+
+The team-history filter is enforced by the portal backend. It is not only a frontend display filter.
 
 Available filters:
 
@@ -495,7 +512,7 @@ Only pending requests expose the Cancel action.
 
 ---
 
-# 13. Command Filters
+# 12. Command Filters
 
 Only admins can access:
 
@@ -550,7 +567,7 @@ The portal writes these changes directly to the JumpServer ACL API.
 
 ---
 
-# 14. Data Masking
+# 13. Data Masking
 
 Only admins can access:
 
@@ -636,7 +653,7 @@ The rule is deleted through the JumpServer API.
 
 ---
 
-# 15. Typical End-to-End Scenario
+# 14. Typical End-to-End Scenario
 
 ## Step 1 — Administrator prepares the workflow
 
@@ -695,7 +712,7 @@ The requester opens Request History and can see the ticket state and ticket numb
 
 ---
 
-# 16. Common Problems
+# 15. Common Problems
 
 ## Login fails
 
@@ -765,7 +782,7 @@ and use a certificate that can be validated by the backend.
 
 ---
 
-# 17. Deployment Reference
+# 16. Deployment Reference
 
 The project can be deployed using Docker Compose.
 
@@ -807,7 +824,7 @@ Do not commit production service tokens or credentials to the repository.
 
 ---
 
-# 18. Architecture
+# 17. Architecture
 
 The portal uses a layered architecture:
 
@@ -839,7 +856,7 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ---
 
-# 19. Security Notes
+# 18. Security Notes
 
 - Use HTTPS for the portal in production.
 - Keep JUMPSERVER_SERVICE_TOKEN server-side only.
@@ -853,7 +870,7 @@ JumpServer remains the authoritative backend for the actual infrastructure-manag
 
 ---
 
-# 20. Quick Reference
+# 19. Quick Reference
 
 | Task | Navigation |
 |---|---|
