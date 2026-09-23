@@ -158,72 +158,170 @@ export function UserAccessMatrix() {
   };
 
   const exportToExcel = () => {
-    const escapeHtml = (value: unknown) =>
+    const escapeXml = (value: unknown) =>
       String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/'/g, '&apos;');
+
+    // Use Excel 2003 SpreadsheetML so Excel honors rotated asset headers.
+    // The exported matrix intentionally mirrors the portal: one User column,
+    // vertical asset names, and compact R/W cells.
+    const headerCells = assets.map((asset) => (
+      `<Cell ss:StyleID="AssetHeader"><Data ss:Type="String">${escapeXml(displayAsset(asset))}</Data></Cell>`
+    )).join('');
 
     const rows = filteredUsers.map((user) => {
       const cells = assets.map((asset) => {
         const permission = permissionMap.get(`${user.id}:${asset.id}`) || '';
-        return `<td class="cell ${permission === 'W' ? 'write' : permission === 'R' ? 'read' : ''}">${permission}</td>`;
+        const style = permission === 'W' ? 'Write' : permission === 'R' ? 'Read' : 'Cell';
+        return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${permission}</Data></Cell>`;
       }).join('');
 
-      return `<tr>
-        <td class="user-id">${escapeHtml(user.id)}</td>
-        <td class="user-name">${escapeHtml(displayUser(user))}</td>
-        <td class="team">${escapeHtml(user.team || '')}</td>
+      return `<Row ss:AutoFitHeight="0" ss:Height="27">
+        <Cell ss:StyleID="User"><Data ss:Type="String">${escapeXml(displayUser(user))}</Data></Cell>
         ${cells}
-      </tr>`;
+      </Row>`;
     }).join('');
 
-    const headers = assets.map((asset) =>
-      `<th class="asset" title="${escapeHtml(displayAsset(asset))}">${escapeHtml(displayAsset(asset))}</th>`
-    ).join('');
+    const columnDefinitions = [
+      '<Column ss:Width="190"/>',
+      ...assets.map(() => '<Column ss:Width="32"/>'),
+    ].join('');
 
-    const html = `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:x="urn:schemas-microsoft-com:office:excel"
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="UTF-8">
-<style>
-  body { font-family: Arial, sans-serif; color: #334155; }
-  table { border-collapse: collapse; }
-  th, td { border: 1px solid #dbe3ea; font-size: 10pt; }
-  .title { background: #ffffff; font-size: 16pt; font-weight: bold; color: #0f172a; padding: 10px; }
-  .subtitle { color: #64748b; padding: 0 10px 10px; }
-  .meta { background: #f8fafc; color: #475569; padding: 7px 10px; }
-  .header { background: #f8fafc; color: #475569; font-weight: bold; }
-  .user-id { background: #ffffff; white-space: nowrap; padding: 6px 8px; }
-  .user-name { background: #ffffff; font-weight: 600; white-space: nowrap; padding: 6px 8px; }
-  .team { background: #ffffff; white-space: nowrap; padding: 6px 8px; }
-  .asset { background: #f8fafc; height: 170px; min-width: 38px; max-width: 38px; vertical-align: bottom; text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); padding: 5px; }
-  .cell { width: 38px; min-width: 38px; height: 30px; text-align: center; vertical-align: middle; }
-  .write { background: #e0f2f1; color: #00796b; font-weight: bold; }
-  .read { background: #f1f5f9; color: #475569; font-weight: bold; }
-</style>
-</head>
-<body>
-<table>
-  <tr><td colspan="${assets.length + 3}" class="title">User Access Matrix</td></tr>
-  <tr><td colspan="${assets.length + 3}" class="subtitle">R = Read Only · W = Write Access</td></tr>
-  <tr><td colspan="${assets.length + 3}" class="meta">Users: ${users.length} &nbsp; | &nbsp; Assets: ${assets.length} &nbsp; | &nbsp; Permissions: ${permissionCount} &nbsp; | &nbsp; Last updated: ${escapeHtml(updatedLabel)}</td></tr>
-  <tr class="header">
-    <th>Employee ID</th>
-    <th>Employee Name</th>
-    <th>Team</th>
-    ${headers}
-  </tr>
-  ${rows}
-</table>
-</body>
-</html>`;
+    const totalColumns = assets.length + 1;
 
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+          xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:x="urn:schemas-microsoft-com:office:excel"
+          xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+          xmlns:html="http://www.w3.org/TR/REC-html40">
+  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+    <Author>JumpServer Ticketing Portal</Author>
+    <Created>${new Date().toISOString()}</Created>
+  </DocumentProperties>
+  <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+    <ProtectStructure>False</ProtectStructure>
+    <ProtectWindows>False</ProtectWindows>
+  </ExcelWorkbook>
+  <Styles>
+    <Style ss:ID="Default" ss:Name="Normal">
+      <Font ss:FontName="Arial" ss:Size="10"/>
+      <Alignment ss:Vertical="Center"/>
+    </Style>
+    <Style ss:ID="Title">
+      <Font ss:FontName="Arial" ss:Size="14" ss:Bold="1" ss:Color="#0F172A"/>
+      <Alignment ss:Vertical="Center"/>
+    </Style>
+    <Style ss:ID="Subtitle">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Color="#64748B"/>
+      <Alignment ss:Vertical="Center"/>
+    </Style>
+    <Style ss:ID="Meta">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Color="#475569"/>
+      <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
+      <Alignment ss:Vertical="Center"/>
+    </Style>
+    <Style ss:ID="Header">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Bold="1" ss:Color="#475569"/>
+      <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="AssetHeader">
+      <Font ss:FontName="Arial" ss:Size="8" ss:Bold="1" ss:Color="#475569"/>
+      <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
+      <Alignment ss:Horizontal="Center" ss:Vertical="Bottom" ss:Rotate="90" ss:WrapText="1"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="User">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Bold="1" ss:Color="#334155"/>
+      <Alignment ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="Cell">
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="Write">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Bold="1" ss:Color="#00796B"/>
+      <Interior ss:Color="#E0F2F1" ss:Pattern="Solid"/>
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="Read">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Bold="1" ss:Color="#475569"/>
+      <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+      </Borders>
+    </Style>
+  </Styles>
+  <Worksheet ss:Name="User Access Matrix">
+    <Table ss:ExpandedColumnCount="${totalColumns}" ss:ExpandedRowCount="${filteredUsers.length + 4}" x:FullColumns="1" x:FullRows="1">
+      ${columnDefinitions}
+      <Row ss:Height="24">
+        <Cell ss:MergeAcross="${assets.length}" ss:StyleID="Title"><Data ss:Type="String">User Access Matrix</Data></Cell>
+      </Row>
+      <Row ss:Height="18">
+        <Cell ss:MergeAcross="${assets.length}" ss:StyleID="Subtitle"><Data ss:Type="String">R = Read Only · W = Write Access</Data></Cell>
+      </Row>
+      <Row ss:Height="20">
+        <Cell ss:MergeAcross="${assets.length}" ss:StyleID="Meta"><Data ss:Type="String">Users: ${users.length} | Assets: ${assets.length} | Permissions: ${permissionCount} | Last updated: ${escapeXml(updatedLabel)}</Data></Cell>
+      </Row>
+      <Row ss:Height="190">
+        <Cell ss:StyleID="Header"><Data ss:Type="String">User</Data></Cell>
+        ${headerCells}
+      </Row>
+      ${rows}
+    </Table>
+    <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+      <FreezePanes/>
+      <FrozenNoSplit/>
+      <SplitHorizontal>4</SplitHorizontal>
+      <TopRowBottomPane>4</TopRowBottomPane>
+      <ActivePane>2</ActivePane>
+      <ProtectContents>False</ProtectContents>
+      <ProtectObjects>False</ProtectObjects>
+      <ProtectScenarios>False</ProtectScenarios>
+    </WorksheetOptions>
+  </Worksheet>
+</Workbook>`;
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
