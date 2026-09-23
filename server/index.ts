@@ -12,6 +12,8 @@ const JUMPSERVER_SERVICE_TOKEN = process.env.JUMPSERVER_SERVICE_TOKEN || '';
 const JUMPSERVER_TLS_VERIFY = process.env.JUMPSERVER_TLS_VERIFY !== 'false';
 const N8N_UAM_WEBHOOK_URL = process.env.N8N_UAM_WEBHOOK_URL || '';
 const N8N_UAM_WEBHOOK_TOKEN = process.env.N8N_UAM_WEBHOOK_TOKEN || '';
+const N8N_UAM_UPDATE_WEBHOOK_URL = process.env.N8N_UAM_UPDATE_WEBHOOK_URL || '';
+const N8N_UAM_UPDATE_WEBHOOK_TOKEN = process.env.N8N_UAM_UPDATE_WEBHOOK_TOKEN || N8N_UAM_WEBHOOK_TOKEN;
 const TEAM_GROUPS = new Set(
   (process.env.TEAM_GROUPS || '')
     .split(',')
@@ -196,6 +198,66 @@ app.get('/portal-api/uam', requireAuth, async (req: Request, res: Response) => {
     return res.status(502).json({
       success: false,
       message: 'Failed to connect to UAM service',
+    });
+  }
+});
+
+app.post('/portal-api/uam/update', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getAuthenticatedUser(req);
+    const role = await resolvePortalRole(req, currentUser);
+    if (role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'User Access Matrix is restricted to administrators',
+      });
+    }
+
+    if (!N8N_UAM_UPDATE_WEBHOOK_URL) {
+      return res.status(500).json({
+        success: false,
+        message: 'N8N_UAM_UPDATE_WEBHOOK_URL is not configured',
+      });
+    }
+
+    const response = await axios.post(
+      N8N_UAM_UPDATE_WEBHOOK_URL,
+      {
+        triggered_by: currentUser.username || currentUser.name || currentUser.id,
+        triggered_at: new Date().toISOString(),
+      },
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(N8N_UAM_UPDATE_WEBHOOK_TOKEN
+            ? { Authorization: `Bearer ${N8N_UAM_UPDATE_WEBHOOK_TOKEN}` }
+            : {}),
+        },
+        timeout: 120000,
+      },
+    );
+
+    return res.json({
+      success: true,
+      data: response.data,
+    });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+
+    if (axiosError.response) {
+      return res.status(502).json({
+        success: false,
+        message: 'Failed to update User Access Matrix from n8n',
+        details: axiosError.response.data,
+        upstreamStatus: axiosError.response.status,
+      });
+    }
+
+    console.error('UAM update endpoint error:', error);
+    return res.status(502).json({
+      success: false,
+      message: 'Failed to connect to UAM update service',
     });
   }
 });
