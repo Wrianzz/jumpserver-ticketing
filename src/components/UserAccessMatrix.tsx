@@ -39,7 +39,6 @@ type UamPayload = {
   };
 };
 
-const PAGE_SIZE = 25;
 
 function displayUser(user: UamUser) {
   return user.display_name || user.name || user.username || user.id;
@@ -73,7 +72,6 @@ export function UserAccessMatrix() {
   const [permissions, setPermissions] = useState<UamPermission[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -94,7 +92,6 @@ export function UserAccessMatrix() {
       setAssets(Array.isArray(payload.assets) ? payload.assets : []);
       setPermissions(Array.isArray(payload.permissions) ? payload.permissions : []);
       setUpdatedAt(payload.updated_at || payload.last_updated);
-      setCurrentPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load User Access Matrix');
     } finally {
@@ -135,11 +132,6 @@ export function UserAccessMatrix() {
         .some((value) => String(value).toLowerCase().includes(keyword)),
     );
   }, [users, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const pageStart = (safePage - 1) * PAGE_SIZE;
-  const paginatedUsers = filteredUsers.slice(pageStart, pageStart + PAGE_SIZE);
 
   const permissionCount = permissions.length;
   const updatedLabel = formatUpdatedAt(updatedAt);
@@ -199,7 +191,6 @@ export function UserAccessMatrix() {
               value={searchTerm}
               onChange={(event) => {
                 setSearchTerm(event.target.value);
-                setCurrentPage(1);
               }}
               className="pl-9 h-9 bg-slate-50"
             />
@@ -251,14 +242,14 @@ export function UserAccessMatrix() {
                     Loading User Access Matrix...
                   </td>
                 </tr>
-              ) : paginatedUsers.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={assets.length + 1} className="px-4 py-16 text-center text-slate-400">
                     No users found.
                   </td>
                 </tr>
               ) : (
-                paginatedUsers.map((user) => (
+                filteredUsers.map((user) => (
                   <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50/70">
                     <td
                       className="sticky left-0 z-10 bg-white border-r border-slate-200 px-4 py-2.5 font-medium text-slate-700 whitespace-nowrap"
@@ -302,32 +293,8 @@ export function UserAccessMatrix() {
           <span className="text-sm text-slate-600">
             {filteredUsers.length === 0
               ? 'Total 0'
-              : `Showing ${pageStart + 1}-${Math.min(pageStart + PAGE_SIZE, filteredUsers.length)} of ${filteredUsers.length}`}
+              : `Showing 1-${filteredUsers.length} of ${filteredUsers.length}`}
           </span>
-
-          {filteredUsers.length > PAGE_SIZE && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={safePage <= 1}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-slate-600 min-w-24 text-center">
-                Page {safePage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={safePage >= totalPages}
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-              >
-                Next
-              </Button>
-            </div>
-          )}
         </div>
       </div>
     </div>
