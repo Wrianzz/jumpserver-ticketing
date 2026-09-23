@@ -242,7 +242,7 @@ export function UserAccessMatrix() {
                     Loading User Access Matrix...
                   </td>
                 </tr>
-              ) : paginatedUsers.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={assets.length + 1} className="px-4 py-16 text-center text-slate-400">
                     No users found.
