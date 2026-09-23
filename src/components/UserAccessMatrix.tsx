@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RotateCw, Search, ShieldCheck, Users, Server, KeyRound } from 'lucide-react';
+import { Download, RotateCw, Search, ShieldCheck, Users, Server, KeyRound, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import apiClient from '@/lib/axios';
@@ -73,6 +73,7 @@ export function UserAccessMatrix() {
   const [updatedAt, setUpdatedAt] = useState<string | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
 
   const load = async () => {
@@ -136,6 +137,103 @@ export function UserAccessMatrix() {
   const permissionCount = permissions.length;
   const updatedLabel = formatUpdatedAt(updatedAt);
 
+  const updateUam = async () => {
+    setUpdating(true);
+    setError('');
+
+    try {
+      const response = await apiClient.post('/portal-api/uam/update');
+      const body = response.data;
+
+      if (!body?.success) {
+        throw new Error(body?.message || 'Failed to update User Access Matrix');
+      }
+
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update User Access Matrix');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const exportToExcel = () => {
+    const escapeHtml = (value: unknown) =>
+      String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const rows = filteredUsers.map((user) => {
+      const cells = assets.map((asset) => {
+        const permission = permissionMap.get(`${user.id}:${asset.id}`) || '';
+        return `<td class="cell ${permission === 'W' ? 'write' : permission === 'R' ? 'read' : ''}">${permission}</td>`;
+      }).join('');
+
+      return `<tr>
+        <td class="user-id">${escapeHtml(user.id)}</td>
+        <td class="user-name">${escapeHtml(displayUser(user))}</td>
+        <td class="team">${escapeHtml(user.team || '')}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    const headers = assets.map((asset) =>
+      `<th class="asset" title="${escapeHtml(displayAsset(asset))}">${escapeHtml(displayAsset(asset))}</th>`
+    ).join('');
+
+    const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; color: #334155; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #dbe3ea; font-size: 10pt; }
+  .title { background: #ffffff; font-size: 16pt; font-weight: bold; color: #0f172a; padding: 10px; }
+  .subtitle { color: #64748b; padding: 0 10px 10px; }
+  .meta { background: #f8fafc; color: #475569; padding: 7px 10px; }
+  .header { background: #f8fafc; color: #475569; font-weight: bold; }
+  .user-id { background: #ffffff; white-space: nowrap; padding: 6px 8px; }
+  .user-name { background: #ffffff; font-weight: 600; white-space: nowrap; padding: 6px 8px; }
+  .team { background: #ffffff; white-space: nowrap; padding: 6px 8px; }
+  .asset { background: #f8fafc; height: 170px; min-width: 38px; max-width: 38px; vertical-align: bottom; text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); padding: 5px; }
+  .cell { width: 38px; min-width: 38px; height: 30px; text-align: center; vertical-align: middle; }
+  .write { background: #e0f2f1; color: #00796b; font-weight: bold; }
+  .read { background: #f1f5f9; color: #475569; font-weight: bold; }
+</style>
+</head>
+<body>
+<table>
+  <tr><td colspan="${assets.length + 3}" class="title">User Access Matrix</td></tr>
+  <tr><td colspan="${assets.length + 3}" class="subtitle">R = Read Only · W = Write Access</td></tr>
+  <tr><td colspan="${assets.length + 3}" class="meta">Users: ${users.length} &nbsp; | &nbsp; Assets: ${assets.length} &nbsp; | &nbsp; Permissions: ${permissionCount} &nbsp; | &nbsp; Last updated: ${escapeHtml(updatedLabel)}</td></tr>
+  <tr class="header">
+    <th>Employee ID</th>
+    <th>Employee Name</th>
+    <th>Team</th>
+    ${headers}
+  </tr>
+  ${rows}
+</table>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `user-access-matrix-${new Date().toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-4">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
@@ -150,15 +248,34 @@ export function UserAccessMatrix() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="text-xs text-slate-500 mr-1">
               Last updated: <span className="font-medium text-slate-700">{updatedLabel}</span>
             </div>
+            <Button
+              size="sm"
+              onClick={updateUam}
+              disabled={loading || updating}
+              className="h-9 bg-[#009688] hover:bg-[#00796B] text-white"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${updating ? 'animate-spin' : ''}`} />
+              {updating ? 'Updating...' : 'Update UAM'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportToExcel}
+              disabled={loading || users.length === 0}
+              className="h-9"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export to Excel
+            </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={load}
-              disabled={loading}
+              disabled={loading || updating}
               className="h-9"
             >
               <RotateCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
