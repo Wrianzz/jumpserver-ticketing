@@ -148,8 +148,17 @@ app.get('/portal-api/health', (_req, res) =>
   res.json({ success: true, service: 'jumpserver-ticketing-backend' }),
 );
 
-app.get('/portal-api/uam', requireAuth, async (_req: Request, res: Response) => {
+app.get('/portal-api/uam', requireAuth, async (req: Request, res: Response) => {
   try {
+    const currentUser = await getAuthenticatedUser(req);
+    const role = await resolvePortalRole(req, currentUser);
+    if (role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'User Access Matrix is restricted to administrators',
+      });
+    }
+
     if (!N8N_UAM_WEBHOOK_URL) {
       return res.status(500).json({
         success: false,
