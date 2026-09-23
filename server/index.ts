@@ -10,6 +10,8 @@ const JUMPSERVER_ORG_ID = process.env.JUMPSERVER_ORG_ID || '00000000-0000-0000-0
 const JUMPSERVER_TIMEZONE_OFFSET = process.env.JUMPSERVER_TIMEZONE_OFFSET || '+0700';
 const JUMPSERVER_SERVICE_TOKEN = process.env.JUMPSERVER_SERVICE_TOKEN || '';
 const JUMPSERVER_TLS_VERIFY = process.env.JUMPSERVER_TLS_VERIFY !== 'false';
+const N8N_UAM_WEBHOOK_URL = process.env.N8N_UAM_WEBHOOK_URL || '';
+const N8N_UAM_WEBHOOK_TOKEN = process.env.N8N_UAM_WEBHOOK_TOKEN || '';
 const TEAM_GROUPS = new Set(
   (process.env.TEAM_GROUPS || '')
     .split(',')
@@ -145,6 +147,58 @@ app.use(express.json({ limit: '1mb' }));
 app.get('/portal-api/health', (_req, res) =>
   res.json({ success: true, service: 'jumpserver-ticketing-backend' }),
 );
+
+app.get('/portal-api/uam', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const currentUser = await getAuthenticatedUser(req);
+    const role = await resolvePortalRole(req, currentUser);
+    if (role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'User Access Matrix is restricted to administrators',
+      });
+    }
+
+    if (!N8N_UAM_WEBHOOK_URL) {
+      return res.status(500).json({
+        success: false,
+        message: 'N8N_UAM_WEBHOOK_URL is not configured',
+      });
+    }
+
+    const response = await axios.get(N8N_UAM_WEBHOOK_URL, {
+      headers: {
+        Accept: 'application/json',
+        ...(N8N_UAM_WEBHOOK_TOKEN
+          ? { Authorization: `Bearer ${N8N_UAM_WEBHOOK_TOKEN}` }
+          : {}),
+      },
+      timeout: 30000,
+    });
+
+    return res.json({
+      success: true,
+      data: response.data,
+    });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+
+    if (axiosError.response) {
+      return res.status(502).json({
+        success: false,
+        message: 'Failed to load User Access Matrix from n8n',
+        details: axiosError.response.data,
+        upstreamStatus: axiosError.response.status,
+      });
+    }
+
+    console.error('UAM endpoint error:', error);
+    return res.status(502).json({
+      success: false,
+      message: 'Failed to connect to UAM service',
+    });
+  }
+});
 
 app.get('/portal-api/logout', async (req: Request, res: Response) => {
   try {
