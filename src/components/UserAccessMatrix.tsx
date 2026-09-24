@@ -183,26 +183,39 @@ export function UserAccessMatrix() {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
 
-    const headerCells = assets.map((asset) => (
-      `<Cell ss:StyleID="AssetHeader"><Data ss:Type="String">${escapeXml(displayAsset(asset))}</Data></Cell>`
-    )).join('');
+    const headerCells = [
+      '<Cell ss:StyleID="Header"><Data ss:Type="String">ID</Data></Cell>',
+      '<Cell ss:StyleID="Header"><Data ss:Type="String">Name</Data></Cell>',
+      '<Cell ss:StyleID="Header"><Data ss:Type="String">Team</Data></Cell>',
+      ...assets.map((asset) => (
+        `<Cell ss:StyleID="AssetHeader"><Data ss:Type="String">${escapeXml(displayAsset(asset))}</Data></Cell>`
+      )),
+    ].join('');
 
-    const rows = filteredUsers.map((user) => {
+    const rows = filteredUsers.map((user, index) => {
       const cells = assets.map((asset) => {
         const permission = permissionMap.get(`${user.id}:${asset.id}`) || '';
         const style = permission === 'W' ? 'Write' : permission === 'R' ? 'Read' : 'Cell';
         return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${permission}</Data></Cell>`;
       }).join('');
 
-      return `<Row ss:Height="27">
+      const previousTeam = index > 0 ? displayTeam(filteredUsers[index - 1]) : '';
+      const teamStart = index > 0 && previousTeam !== displayTeam(user);
+      const rowStyle = teamStart ? ' ss:StyleID="TeamStart"' : '';
+
+      return `<Row ss:Height="27"${rowStyle}>
+        <Cell ss:StyleID="UserId"><Data ss:Type="String">${escapeXml(user.username || '')}</Data></Cell>
         <Cell ss:StyleID="User"><Data ss:Type="String">${escapeXml(displayUser(user))}</Data></Cell>
+        <Cell ss:StyleID="Team"><Data ss:Type="String">${escapeXml(displayTeam(user))}</Data></Cell>
         ${cells}
       </Row>`;
     }).join('');
 
-    const totalColumns = assets.length + 1;
+    const totalColumns = assets.length + 3;
     const columnDefinitions = [
+      '<Column ss:Width="70"/>',
       '<Column ss:Width="190"/>',
+      '<Column ss:Width="90"/>',
       ...assets.map(() => '<Column ss:Width="32"/>'),
     ].join('');
 
@@ -256,6 +269,16 @@ export function UserAccessMatrix() {
         <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
       </Borders>
     </Style>
+    <Style ss:ID="UserId">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Color="#475569"/>
+      <Alignment ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+      </Borders>
+    </Style>
     <Style ss:ID="User">
       <Font ss:FontName="Arial" ss:Size="9" ss:Bold="1" ss:Color="#334155"/>
       <Alignment ss:Vertical="Center"/>
@@ -264,6 +287,21 @@ export function UserAccessMatrix() {
         <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
         <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
         <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="Team">
+      <Font ss:FontName="Arial" ss:Size="9" ss:Color="#64748B"/>
+      <Alignment ss:Vertical="Center"/>
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#DBE3EA"/>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EDF2F7"/>
+      </Borders>
+    </Style>
+    <Style ss:ID="TeamStart">
+      <Borders>
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#CBD5E1"/>
       </Borders>
     </Style>
     <Style ss:ID="Cell">
@@ -311,7 +349,6 @@ export function UserAccessMatrix() {
         <Cell ss:MergeAcross="${assets.length}" ss:StyleID="Meta"><Data ss:Type="String">Users: ${users.length} | Assets: ${assets.length} | Permissions: ${permissionCount} | Last updated: ${escapeXml(updatedLabel)}</Data></Cell>
       </Row>
       <Row ss:Height="190">
-        <Cell ss:StyleID="Header"><Data ss:Type="String">User</Data></Cell>
         ${headerCells}
       </Row>
       ${rows}
