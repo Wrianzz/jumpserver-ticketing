@@ -44,6 +44,10 @@ function displayUser(user: UamUser) {
   return user.display_name || user.name || user.username || user.id;
 }
 
+function displayTeam(user: UamUser) {
+  return user.team?.trim() || 'Other';
+}
+
 function displayAsset(asset: UamAsset) {
   return asset.display_name || asset.name || asset.address || asset.id;
 }
@@ -125,13 +129,26 @@ export function UserAccessMatrix() {
 
   const filteredUsers = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return users;
 
-    return users.filter((user) =>
-      [user.id, user.name, user.username, user.display_name, user.team]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(keyword)),
-    );
+    const filtered = keyword
+      ? users.filter((user) =>
+          [user.id, user.name, user.username, user.display_name, user.team]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(keyword)),
+        )
+      : [...users];
+
+    return filtered.sort((a, b) => {
+      const teamCompare = displayTeam(a).localeCompare(displayTeam(b), undefined, {
+        sensitivity: 'base',
+      });
+
+      if (teamCompare !== 0) return teamCompare;
+
+      return displayUser(a).localeCompare(displayUser(b), undefined, {
+        sensitivity: 'base',
+      });
+    });
   }, [users, searchTerm]);
 
   const permissionCount = permissions.length;
@@ -409,11 +426,17 @@ export function UserAccessMatrix() {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 min-h-0 overflow-hidden">
         <div className="h-full overflow-auto">
-          <table className="border-collapse text-xs" style={{ minWidth: Math.max(760, 260 + assets.length * 42) }}>
+          <table className="border-collapse text-xs" style={{ minWidth: Math.max(900, 392 + assets.length * 42) }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="sticky left-0 z-30 bg-slate-50 border-r border-slate-200 min-w-[260px] w-[260px] px-4 py-3 text-left font-semibold text-slate-600">
-                  User
+                <th className="sticky left-0 z-30 bg-slate-50 border-r border-slate-200 min-w-[72px] w-[72px] px-3 py-3 text-left font-semibold text-slate-600">
+                  ID
+                </th>
+                <th className="sticky left-[72px] z-30 bg-slate-50 border-r border-slate-200 min-w-[220px] w-[220px] px-4 py-3 text-left font-semibold text-slate-600">
+                  Name
+                </th>
+                <th className="sticky left-[292px] z-30 bg-slate-50 border-r border-slate-200 min-w-[100px] w-[100px] px-3 py-3 text-left font-semibold text-slate-600">
+                  Team
                 </th>
                 {assets.map((asset) => (
                   <th
@@ -452,17 +475,36 @@ export function UserAccessMatrix() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50/70">
-                    <td
-                      className="sticky left-0 z-10 bg-white border-r border-slate-200 px-4 py-2.5 font-medium text-slate-700 whitespace-nowrap"
-                      title={displayUser(user)}
+                filteredUsers.map((user, index) => {
+                  const previousTeam = index > 0 ? displayTeam(filteredUsers[index - 1]) : '';
+                  const teamStart = index > 0 && previousTeam !== displayTeam(user);
+
+                  return (
+                    <tr
+                      key={user.id}
+                      className={
+                        'border-b border-slate-100 hover:bg-slate-50/70' +
+                        (teamStart ? ' border-t-2 border-t-slate-200' : '')
+                      }
                     >
-                      <div className="flex flex-col">
-                        <span>{displayUser(user)}</span>
-                        {user.team && <span className="text-[10px] font-normal text-slate-400">{user.team}</span>}
-                      </div>
-                    </td>
+                      <td
+                        className="sticky left-0 z-10 bg-white border-r border-slate-200 px-3 py-2.5 text-slate-500 whitespace-nowrap"
+                        title={user.username || ''}
+                      >
+                        {user.username || '-'}
+                      </td>
+                      <td
+                        className="sticky left-[72px] z-10 bg-white border-r border-slate-200 px-4 py-2.5 font-medium text-slate-700 whitespace-nowrap"
+                        title={displayUser(user)}
+                      >
+                        {displayUser(user)}
+                      </td>
+                      <td
+                        className="sticky left-[292px] z-10 bg-white border-r border-slate-200 px-3 py-2.5 text-slate-500 whitespace-nowrap"
+                        title={displayTeam(user)}
+                      >
+                        {displayTeam(user)}
+                      </td>
                     {assets.map((asset) => {
                       const permission = permissionMap.get(`${user.id}:${asset.id}`) || '';
 
@@ -485,8 +527,9 @@ export function UserAccessMatrix() {
                         </td>
                       );
                     })}
-                  </tr>
-                ))
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
