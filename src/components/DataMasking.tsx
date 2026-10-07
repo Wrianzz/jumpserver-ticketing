@@ -113,10 +113,10 @@ function RadioGroup<T extends string>({ value, options, onChange }: {
 }) {
   return <div className="flex flex-wrap items-center gap-5">
     {options.map((o) => <label key={o.value} className="flex items-center gap-2 cursor-pointer group">
-      <div className={cn('w-4 h-4 rounded-full border flex items-center justify-center', value === o.value ? 'border-[#009688]' : 'border-slate-300 group-hover:border-[#009688]')}>
-        {value === o.value && <div className="w-2 h-2 rounded-full bg-[#009688]" />}
+      <div className={cn('w-4 h-4 rounded-full border flex items-center justify-center', value === o.value ? 'border-brand' : 'border-line group-hover:border-brand')}>
+        {value === o.value && <div className="w-2 h-2 rounded-full bg-brand" />}
       </div>
-      <span className="text-sm text-slate-600">{o.label}</span>
+      <span className="text-sm text-fg-2">{o.label}</span>
       <input className="hidden" type="radio" checked={value === o.value} onChange={() => onChange(o.value)} />
     </label>)}
   </div>;
@@ -142,16 +142,16 @@ function AttrEditor({ rules, target, onChange }: { rules: Rule[]; target: 'user'
   const update = (i: number, patch: Partial<Rule>) => onChange(rules.map((x, n) => n === i ? { ...x, ...patch } : x));
   return <div className="mt-4 space-y-2">
     {rules.map((x, i) => <div key={i} className="grid grid-cols-[1fr_150px_1fr_36px] gap-2">
-      <select className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm" value={x.name} onChange={(e) => update(i, { name: e.target.value })}>
+      <select className="h-10 rounded-md border border-line bg-surface px-3 text-sm" value={x.name} onChange={(e) => update(i, { name: e.target.value })}>
         <option value="">Select attribute</option>{options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      <select className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm" value={x.match} onChange={(e) => update(i, { match: e.target.value })}>
+      <select className="h-10 rounded-md border border-line bg-surface px-3 text-sm" value={x.match} onChange={(e) => update(i, { match: e.target.value })}>
         <option value="exact">Equals</option><option value="contains">Contains</option><option value="startswith">Starts with</option>
         <option value="endswith">Ends with</option><option value="in">In</option><option value="not">Not equal</option>
         <option value="regex">Regex</option><option value="m2m_any">M2M any</option><option value="m2m_all">M2M all</option>
       </select>
       <Input placeholder="Value (comma-separated if multiple)" value={x.value} onChange={(e) => update(i, { value: e.target.value })} />
-      <Button type="button" variant="ghost" size="icon" onClick={() => onChange(rules.length === 1 ? [rule()] : rules.filter((_, n) => n !== i))}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+      <Button type="button" variant="ghost" size="icon" onClick={() => onChange(rules.length === 1 ? [rule()] : rules.filter((_, n) => n !== i))}><Trash2 className="w-4 h-4 text-red-400" /></Button>
     </div>)}
     <Button type="button" variant="outline" size="sm" onClick={() => onChange(rules.concat([rule()]))}><Plus className="w-4 h-4 mr-2" /> Add attribute rule</Button>
   </div>;
@@ -252,87 +252,87 @@ export function DataMasking() {
     catch (e) { setError(errorMessage(e, 'Failed to delete data masking rule.')); }
   };
 
-  return <div className="flex-1 p-4 sm:p-8 bg-slate-50 overflow-y-auto flex flex-col">
-    <div className="flex flex-col gap-4 bg-white rounded-xl shadow-sm border border-slate-200 min-h-[500px]">
-      <div className="flex items-center justify-between p-4 border-b border-slate-100 gap-4">
-        <Button onClick={openCreate} className="bg-[#009688] hover:bg-[#00796B] text-white"><Plus className="w-4 h-4 mr-2" /> Create</Button>
+  return <div className="flex-1 p-4 sm:p-8 bg-surface-2 overflow-y-auto flex flex-col">
+    <div className="flex flex-col gap-4 bg-surface rounded-xl shadow-sm border border-line min-h-[500px]">
+      <div className="flex items-center justify-between p-4 border-b border-line/60 gap-4">
+        <Button onClick={openCreate} className="bg-brand hover:bg-brand-hover text-white"><Plus className="w-4 h-4 mr-2" /> Create</Button>
         <div className="flex items-center gap-3">
-          <div className="relative w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input placeholder="Search" className="pl-9 h-9 bg-slate-50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+          <div className="relative w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-3" />
+            <Input placeholder="Search" className="pl-9 h-9 bg-surface-2" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
           <Button variant="ghost" size="icon" onClick={load} disabled={loading}><RotateCw className={cn('w-4 h-4', loading && 'animate-spin')} /></Button>
         </div>
       </div>
-      {error && !modalOpen && <div className="mx-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+      {error && !modalOpen && <div className="mx-4 rounded-md border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left"><thead className="bg-slate-50/50 text-slate-600 border-b border-slate-100">
+        <table className="w-full text-sm text-left"><thead className="bg-surface-2/50 text-fg-2 border-b border-line/60">
           <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Fields pattern</th><th className="px-4 py-3">Masking method</th><th className="px-4 py-3">Priority</th><th className="px-4 py-3">Active</th><th className="px-4 py-3">Description</th><th className="px-4 py-3 text-right">Actions</th></tr>
         </thead><tbody>
-          {loading ? <tr><td colSpan={7} className="py-12 text-center text-slate-500"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading from JumpServer...</td></tr>
-          : filtered.length === 0 ? <tr><td colSpan={7} className="py-12 text-center text-slate-400">No data masking rules found.</td></tr>
-          : filtered.map((x) => <tr key={x.id} className="border-b border-slate-100 hover:bg-slate-50">
-            <td className="px-4 py-3"><button className="text-[#3498db] hover:underline" onClick={() => openEdit(x.id)}>{x.name}</button></td>
+          {loading ? <tr><td colSpan={7} className="py-12 text-center text-fg-3"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading from JumpServer...</td></tr>
+          : filtered.length === 0 ? <tr><td colSpan={7} className="py-12 text-center text-fg-3">No data masking rules found.</td></tr>
+          : filtered.map((x) => <tr key={x.id} className="border-b border-line/60 hover:bg-surface-2">
+            <td className="px-4 py-3"><button className="text-sky-400 hover:underline" onClick={() => openEdit(x.id)}>{x.name}</button></td>
             <td className="px-4 py-3">{x.fields_pattern || '-'}</td><td className="px-4 py-3">{methodLabel(x.masking_method)}</td><td className="px-4 py-3">{x.priority ?? 50}</td>
-            <td className="px-4 py-3">{x.is_active !== false ? <span className="flex items-center gap-1 text-[#009688]"><CheckCircle2 className="w-4 h-4" /> Yes</span> : 'No'}</td>
+            <td className="px-4 py-3">{x.is_active !== false ? <span className="flex items-center gap-1 text-brand"><CheckCircle2 className="w-4 h-4" /> Yes</span> : 'No'}</td>
             <td className="px-4 py-3">{x.comment || '-'}</td>
-            <td className="px-4 py-3"><div className="flex justify-end gap-1"><Button size="sm" className="h-7 bg-[#009688] hover:bg-[#00796B]" onClick={() => openEdit(x.id)}>Edit</Button>
+            <td className="px-4 py-3"><div className="flex justify-end gap-1"><Button size="sm" className="h-7 bg-brand hover:bg-brand-hover" onClick={() => openEdit(x.id)}>Edit</Button>
               <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="h-7 w-7 p-0"><MoreHorizontal className="w-4 h-4" /></Button></PopoverTrigger>
-                <PopoverContent className="w-32 p-1" align="end"><button onClick={() => remove(x.id)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" />Delete</button></PopoverContent>
+                <PopoverContent className="w-32 p-1" align="end"><button onClick={() => remove(x.id)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" />Delete</button></PopoverContent>
               </Popover></div></td>
           </tr>)}
         </tbody></table>
       </div>
-      <div className="mt-auto border-t border-slate-100 p-4 text-sm text-slate-600">Total {filtered.length}</div>
+      <div className="mt-auto border-t border-line/60 p-4 text-sm text-fg-2">Total {filtered.length}</div>
     </div>
 
-    {modalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100"><h2 className="text-xl font-medium text-slate-800">{editingId ? 'Update datamasking' : 'Create datamasking'}</h2>
-          <button onClick={() => setModalOpen(false)} className="p-1 rounded hover:bg-slate-100"><X className="w-5 h-5 text-slate-400" /></button></div>
+    {modalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm backdrop-blur-sm p-4">
+      <div className="bg-surface rounded-lg shadow-xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-line/60"><h2 className="text-xl font-medium text-fg">{editingId ? 'Update datamasking' : 'Create datamasking'}</h2>
+          <button onClick={() => setModalOpen(false)} className="p-1 rounded hover:bg-surface-3"><X className="w-5 h-5 text-fg-3" /></button></div>
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+          {error && <div className="rounded-md border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
 
-          <section className="space-y-5 pb-8 border-b border-dashed border-slate-200"><h3 className="font-semibold text-slate-800">Basic</h3>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right"><span className="text-red-500">*</span> Name</label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <section className="space-y-5 pb-8 border-b border-dashed border-line"><h3 className="font-semibold text-fg">Basic</h3>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right"><span className="text-red-400">*</span> Name</label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Priority</label><Input type="number" min={1} max={100} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></div>
           </section>
 
-          <section className="pb-8 border-b border-dashed border-slate-200"><h3 className="font-semibold text-slate-800 mb-5">Users</h3>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-1"><span className="text-red-500">*</span> User</label><div>
+          <section className="pb-8 border-b border-dashed border-line"><h3 className="font-semibold text-fg mb-5">Users</h3>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-1"><span className="text-red-400">*</span> User</label><div>
               <RadioGroup value={form.userTarget} options={[{ value: 'all', label: 'All users' }, { value: 'specific', label: 'Specific users' }, { value: 'attribute', label: 'Filter by attribute' }]} onChange={(v) => setForm({ ...form, userTarget: v })} />
               {form.userTarget === 'specific' && <div className="mt-4"><AsyncSelect endpoint="/api/v1/users/users/?fields_size=mini" placeholder="Select users" emptyText="No users found." value={form.users} onChange={(v) => setForm({ ...form, users: v })} /></div>}
               {form.userTarget === 'attribute' && <AttrEditor target="user" rules={form.userAttrs} onChange={(v) => setForm({ ...form, userAttrs: v })} />}
             </div></div>
           </section>
 
-          <section className="pb-8 border-b border-dashed border-slate-200"><h3 className="font-semibold text-slate-800 mb-5">Asset</h3>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-1"><span className="text-red-500">*</span> Asset</label><div>
+          <section className="pb-8 border-b border-dashed border-line"><h3 className="font-semibold text-fg mb-5">Asset</h3>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-1"><span className="text-red-400">*</span> Asset</label><div>
               <RadioGroup value={form.assetTarget} options={[{ value: 'all', label: 'All assets' }, { value: 'specific', label: 'Specific assets' }, { value: 'attribute', label: 'Filter by attribute' }]} onChange={(v) => setForm({ ...form, assetTarget: v })} />
               {form.assetTarget === 'specific' && <div className="mt-4"><AsyncSelect endpoint="/api/v1/assets/assets/?fields_size=mini" placeholder="Select assets" emptyText="No assets found." value={form.assets} onChange={(v) => setForm({ ...form, assets: v })} /></div>}
               {form.assetTarget === 'attribute' && <AttrEditor target="asset" rules={form.assetAttrs} onChange={(v) => setForm({ ...form, assetAttrs: v })} />}
             </div></div>
           </section>
 
-          <section className="pb-8 border-b border-dashed border-slate-200"><h3 className="font-semibold text-slate-800 mb-5">Accounts</h3>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-1"><span className="text-red-500">*</span> Account</label><div>
+          <section className="pb-8 border-b border-dashed border-line"><h3 className="font-semibold text-fg mb-5">Accounts</h3>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-1"><span className="text-red-400">*</span> Account</label><div>
               <RadioGroup value={form.accountTarget} options={[{ value: 'all', label: 'All accounts' }, { value: 'specific', label: 'Specified accounts' }, { value: 'exclude', label: 'Exclude accounts' }, { value: 'none', label: 'None' }]} onChange={(v) => setForm({ ...form, accountTarget: v })} />
               {(form.accountTarget === 'specific' || form.accountTarget === 'exclude') && <div className="mt-4"><AsyncSelect method="POST" endpoint="/api/v1/accounts/accounts/username-suggestions/" postBody={{ assets: form.assets, nodes: [] }} placeholder="Select account" emptyText="No accounts found." value={form.accountNames} onChange={(v) => setForm({ ...form, accountNames: v })} /></div>}
             </div></div>
           </section>
 
-          <section className="pb-8 border-b border-dashed border-slate-200 space-y-5"><h3 className="font-semibold text-slate-800">Rules</h3>
+          <section className="pb-8 border-b border-dashed border-line space-y-5"><h3 className="font-semibold text-fg">Rules</h3>
             <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Fields pattern</label><Input value={form.fieldsPattern} onChange={(e) => setForm({ ...form, fieldsPattern: e.target.value })} /></div>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Masking method</label><select className="w-full max-w-xl h-10 px-3 rounded-md border border-slate-200 bg-white text-sm" value={form.maskingMethod} onChange={(e) => setForm({ ...form, maskingMethod: e.target.value as FormState['maskingMethod'] })}>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Masking method</label><select className="w-full max-w-xl h-10 px-3 rounded-md border border-line bg-surface text-sm" value={form.maskingMethod} onChange={(e) => setForm({ ...form, maskingMethod: e.target.value as FormState['maskingMethod'] })}>
               <option value="fixed_char">Fixed Character Replacement</option><option value="hide_middle">Hide Middle Characters</option><option value="keep_prefix">Keep Prefix Only</option><option value="keep_suffix">Keep Suffix Only</option>
             </select></div>
             <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Mask pattern</label><Input value={form.maskPattern} onChange={(e) => setForm({ ...form, maskPattern: e.target.value })} /></div>
           </section>
 
-          <section className="space-y-5"><h3 className="font-semibold text-slate-800">Other</h3>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Active</label><Checkbox checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: !!v })} className="data-[state=checked]:bg-[#009688] data-[state=checked]:border-[#009688]" /></div>
-            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-2">Description</label><textarea className="w-full h-24 p-3 rounded-md border border-slate-200 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#009688]/20" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} /></div>
+          <section className="space-y-5"><h3 className="font-semibold text-fg">Other</h3>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-center"><label className="text-sm text-right">Active</label><Checkbox checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: !!v })} className="data-[state=checked]:bg-brand data-[state=checked]:border-brand" /></div>
+            <div className="grid grid-cols-[140px_1fr] gap-6 items-start"><label className="text-sm text-right mt-2">Description</label><textarea className="w-full h-24 p-3 rounded-md border border-line text-sm resize-y focus:outline-none focus:ring-2 focus:ring-brand/20" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} /></div>
           </section>
         </div>
-        <div className="p-6 border-t border-slate-100 flex gap-3 justify-end"><Button variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>Cancel</Button><Button onClick={submit} disabled={saving} className="bg-[#009688] hover:bg-[#00796B] text-white min-w-28">{saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : 'Submit'}</Button></div>
+        <div className="p-6 border-t border-line/60 flex gap-3 justify-end"><Button variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>Cancel</Button><Button onClick={submit} disabled={saving} className="bg-brand hover:bg-brand-hover text-white min-w-28">{saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : 'Submit'}</Button></div>
       </div>
     </div>}
   </div>;

@@ -125,21 +125,21 @@ export function AsyncSelect({
         <div
           role="combobox"
           aria-expanded={open}
-          className="w-full min-h-10 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 flex flex-wrap items-center justify-between rounded-md px-3 py-1.5 cursor-pointer transition-colors"
+          className="w-full min-h-10 border border-line bg-surface hover:bg-surface-2 text-fg-2 flex flex-wrap items-center justify-between rounded-md px-3 py-1.5 cursor-pointer transition-colors"
           onClick={() => setOpen(!open)}
         >
           <div className="flex flex-wrap gap-1.5 items-center flex-1 pr-2">
             {value.length > 0 ? value.map((val) => {
               const label = options.find((opt) => opt.value === val)?.label || val;
               return (
-                <span key={val} className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-sm flex items-center gap-1">
+                <span key={val} className="bg-surface-3 text-fg-2 border border-line px-2 py-0.5 rounded text-sm flex items-center gap-1">
                   {label}
-                  <button type="button" className="text-slate-400 hover:text-slate-600 transition-colors ml-0.5" onClick={(e) => removeValue(e, val)}>×</button>
+                  <button type="button" className="text-fg-3 hover:text-fg-2 transition-colors ml-0.5" onClick={(e) => removeValue(e, val)}>×</button>
                 </span>
               );
-            }) : <span className="text-slate-500 text-sm">{placeholder}</span>}
+            }) : <span className="text-fg-3 text-sm">{placeholder}</span>}
           </div>
-          <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
+          <ChevronsUpDown className="h-4 w-4 shrink-0 text-fg-3" />
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0" align="start">
@@ -151,7 +151,7 @@ export function AsyncSelect({
           />
           <CommandList>
             {loading && (
-              <div className="flex items-center justify-center p-4 text-sm text-gray-500">
+              <div className="flex items-center justify-center p-4 text-sm text-fg-3">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...
               </div>
             )}

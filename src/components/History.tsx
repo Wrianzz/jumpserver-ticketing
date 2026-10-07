@@ -25,9 +25,9 @@ const FILTERS = [
 ];
 
 function badgeClass(state?: string) {
-  if (state === 'approved') return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-  if (state === 'rejected') return 'bg-red-50 text-red-600 border-red-200';
-  return 'bg-blue-50 text-blue-600 border-blue-200';
+  if (state === 'approved') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25';
+  if (state === 'rejected') return 'bg-red-500/10 text-red-400 border-red-500/25';
+  return 'bg-blue-500/10 text-blue-400 border-blue-500/25';
 }
 
 export function History() {
@@ -105,19 +105,19 @@ export function History() {
   };
 
   return (
-    <div className="flex-1 bg-slate-50 overflow-y-auto flex flex-col">
-      <div className="flex flex-col gap-4 bg-white rounded-xl shadow-sm border border-slate-200 min-h-[500px]">
-        <div className="flex flex-col gap-4 p-4 border-b border-slate-100">
+    <div className="flex-1 bg-surface-2 overflow-y-auto flex flex-col">
+      <div className="flex flex-col gap-4 bg-surface rounded-xl shadow-sm border border-line min-h-[500px]">
+        <div className="flex flex-col gap-4 p-4 border-b border-line/60">
           <div className="flex items-center justify-between">
             <Link to="/create">
-              <Button className="bg-[#009688] hover:bg-[#00796B] text-white">
+              <Button className="bg-brand hover:bg-brand-hover text-white">
                 <Plus className="w-4 h-4 mr-2" /> New ticket
               </Button>
             </Link>
             <div className="flex items-center gap-3">
               <div className="relative w-64">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="w-4 h-4 text-slate-400" /></div>
-                <Input placeholder="Search title, number or applicant" className="w-full pl-9 h-9 text-sm border-slate-200 bg-slate-50" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Search className="w-4 h-4 text-fg-3" /></div>
+                <Input placeholder="Search title, number or applicant" className="w-full pl-9 h-9 text-sm border-line bg-surface-2" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
               <Button variant="ghost" size="icon" onClick={loadTickets} disabled={loading} className="h-9 w-9" aria-label="Refresh request history">
                 <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -126,50 +126,50 @@ export function History() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">State</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-fg-3">State</span>
             {FILTERS.map((filter) => (
-              <label key={filter.value} className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                <Checkbox checked={selectedStates.includes(filter.value)} onCheckedChange={() => toggleState(filter.value)} className="border-slate-300 data-[state=checked]:bg-[#009688] data-[state=checked]:border-[#009688]" />
+              <label key={filter.value} className="flex items-center gap-2 text-sm text-fg-2 cursor-pointer">
+                <Checkbox checked={selectedStates.includes(filter.value)} onCheckedChange={() => toggleState(filter.value)} className="border-line data-[state=checked]:bg-brand data-[state=checked]:border-brand" />
                 {filter.label}
               </label>
             ))}
             {selectedStates.length > 0 && (
-              <button type="button" onClick={() => setSelectedStates([])} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800">
+              <button type="button" onClick={() => setSelectedStates([])} className="flex items-center gap-1 text-xs text-fg-3 hover:text-fg">
                 <X className="w-3 h-3" /> Clear filters
               </button>
             )}
           </div>
         </div>
 
-        {error && <div className="mx-4 -mb-1 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+        {error && <div className="mx-4 -mb-1 rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50/50 text-slate-600 font-medium border-b border-slate-100">
+            <thead className="bg-surface-2/50 text-fg-2 font-medium border-b border-line/60">
               <tr><th className="px-4 py-3">Title</th><th className="px-4 py-3">No.</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Applicant</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Date</th><th className="px-4 py-3 text-right">Action</th></tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Loading request history...</td></tr> : visibleTickets.length === 0 ? <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No requests found.</td></tr> : paginatedTickets.map((ticket) => {
+              {loading ? <tr><td colSpan={7} className="px-4 py-12 text-center text-fg-3">Loading request history...</td></tr> : visibleTickets.length === 0 ? <tr><td colSpan={7} className="px-4 py-12 text-center text-fg-3">No requests found.</td></tr> : paginatedTickets.map((ticket) => {
                 const state = ticket.state?.value || '';
-                return <tr key={ticket.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-3 text-[#009688] font-medium">{ticket.title}</td>
-                  <td className="px-4 py-3 text-slate-700">{ticket.serial_num}</td>
-                  <td className="px-4 py-3 text-slate-700">{ticket.type?.label || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{ticket.applicant || '-'}</td>
+                return <tr key={ticket.id} className="border-b border-line/60 hover:bg-surface-2">
+                  <td className="px-4 py-3 text-brand font-medium">{ticket.title}</td>
+                  <td className="px-4 py-3 text-fg-2">{ticket.serial_num}</td>
+                  <td className="px-4 py-3 text-fg-2">{ticket.type?.label || '-'}</td>
+                  <td className="px-4 py-3 text-fg-2">{ticket.applicant || '-'}</td>
                   <td className="px-4 py-3"><span className={`inline-flex px-2 py-0.5 text-xs font-medium border rounded ${badgeClass(state)}`}>{ticket.state?.label || ticket.status?.label || '-'}</span></td>
-                  <td className="px-4 py-3 text-slate-700">{ticket.date_created || '-'}</td>
-                  <td className="px-4 py-3 text-right">{state === 'pending' ? <Button variant="ghost" size="sm" disabled={cancellingId === ticket.id} onClick={() => cancelTicket(ticket)} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-7 text-xs px-3">{cancellingId === ticket.id ? 'Cancelling...' : 'Cancel'}</Button> : <span className="text-slate-400">-</span>}</td>
+                  <td className="px-4 py-3 text-fg-2">{ticket.date_created || '-'}</td>
+                  <td className="px-4 py-3 text-right">{state === 'pending' ? <Button variant="ghost" size="sm" disabled={cancellingId === ticket.id} onClick={() => cancelTicket(ticket)} className="text-red-400 hover:text-red-400 hover:bg-red-500/10 h-7 text-xs px-3">{cancellingId === ticket.id ? 'Cancelling...' : 'Cancel'}</Button> : <span className="text-fg-3">-</span>}</td>
                 </tr>;
               })}
             </tbody>
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 p-4 border-t border-slate-100 mt-auto sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-slate-600">{visibleTickets.length === 0 ? 'Total 0' : `Showing ${pageStart + 1}-${pageEnd} of ${visibleTickets.length}`}</div>
+        <div className="flex flex-col gap-3 p-4 border-t border-line/60 mt-auto sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-fg-2">{visibleTickets.length === 0 ? 'Total 0' : `Showing ${pageStart + 1}-${pageEnd} of ${visibleTickets.length}`}</div>
           {visibleTickets.length > PAGE_SIZE && <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" className="h-8 w-8" disabled={safeCurrentPage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} aria-label="Previous page"><ChevronLeft className="w-4 h-4" /></Button>
-            <span className="min-w-24 text-center text-sm text-slate-600">Page {safeCurrentPage} of {totalPages}</span>
+            <span className="min-w-24 text-center text-sm text-fg-2">Page {safeCurrentPage} of {totalPages}</span>
             <Button variant="outline" size="icon" className="h-8 w-8" disabled={safeCurrentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} aria-label="Next page"><ChevronRight className="w-4 h-4" /></Button>
           </div>}
         </div>

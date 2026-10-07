@@ -376,27 +376,27 @@ export function UserAccessMatrix() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-4">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
+      <div className="bg-surface rounded-xl border border-line shadow-sm shrink-0">
         <div className="p-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#009688]/10 text-[#009688] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-brand/10 text-brand flex items-center justify-center">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-slate-900">User Access Matrix</h2>
-              <p className="text-xs text-slate-500">R = Read Only · W = Write Access</p>
+              <h2 className="text-base font-semibold text-fg">User Access Matrix</h2>
+              <p className="text-xs text-fg-3">R = Read Only · W = Write Access</p>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <div className="text-xs text-slate-500 mr-1">
-              Last updated: <span className="font-medium text-slate-700">{updatedLabel}</span>
+            <div className="text-xs text-fg-3 mr-1">
+              Last updated: <span className="font-medium text-fg-2">{updatedLabel}</span>
             </div>
             <Button
               size="sm"
               onClick={updateUam}
               disabled={loading || updating}
-              className="h-9 bg-[#009688] hover:bg-[#00796B] text-white"
+              className="h-9 bg-brand hover:bg-brand-hover text-white"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${updating ? 'animate-spin' : ''}`} />
               {updating ? 'Updating...' : 'Update UAM'}
@@ -424,62 +424,62 @@ export function UserAccessMatrix() {
           </div>
         </div>
 
-        <div className="border-t border-slate-100 px-4 py-3 flex flex-wrap gap-3">
-          <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-            <Users className="w-4 h-4 text-slate-400" />
-            <span className="text-xs text-slate-500">Users</span>
-            <span className="text-sm font-semibold text-slate-800">{users.length}</span>
+        <div className="border-t border-line/60 px-4 py-3 flex flex-wrap gap-3">
+          <div className="inline-flex items-center gap-2 rounded-lg bg-surface-2 border border-line/60 px-3 py-2">
+            <Users className="w-4 h-4 text-fg-3" />
+            <span className="text-xs text-fg-3">Users</span>
+            <span className="text-sm font-semibold text-fg">{users.length}</span>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-            <Server className="w-4 h-4 text-slate-400" />
-            <span className="text-xs text-slate-500">Assets</span>
-            <span className="text-sm font-semibold text-slate-800">{assets.length}</span>
+          <div className="inline-flex items-center gap-2 rounded-lg bg-surface-2 border border-line/60 px-3 py-2">
+            <Server className="w-4 h-4 text-fg-3" />
+            <span className="text-xs text-fg-3">Assets</span>
+            <span className="text-sm font-semibold text-fg">{assets.length}</span>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-            <KeyRound className="w-4 h-4 text-slate-400" />
-            <span className="text-xs text-slate-500">Permissions</span>
-            <span className="text-sm font-semibold text-slate-800">{permissionCount}</span>
+          <div className="inline-flex items-center gap-2 rounded-lg bg-surface-2 border border-line/60 px-3 py-2">
+            <KeyRound className="w-4 h-4 text-fg-3" />
+            <span className="text-xs text-fg-3">Permissions</span>
+            <span className="text-sm font-semibold text-fg">{permissionCount}</span>
           </div>
 
           <div className="relative ml-auto w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-3 pointer-events-none" />
             <Input
               placeholder="Search user"
               value={searchTerm}
               onChange={(event) => {
                 setSearchTerm(event.target.value);
               }}
-              className="pl-9 h-9 bg-slate-50"
+              className="pl-9 h-9 bg-surface-2"
             />
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 shrink-0">
+        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-400 shrink-0">
           {error}
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 min-h-0 overflow-hidden">
+      <div className="bg-surface rounded-xl border border-line shadow-sm flex-1 min-h-0 overflow-hidden">
         <div className="h-full overflow-auto">
           <table className="border-collapse text-xs" style={{ minWidth: Math.max(900, 392 + assets.length * 42) }}>
             <thead className="sticky top-0 z-20">
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="sticky left-0 z-30 bg-slate-50 border-r border-slate-200 min-w-[72px] w-[72px] px-3 py-3 text-left font-semibold text-slate-600">
+              <tr className="bg-surface-2 border-b border-line">
+                <th className="sticky left-0 z-30 bg-surface-2 border-r border-line min-w-[72px] w-[72px] px-3 py-3 text-left font-semibold text-fg-2">
                   ID
                 </th>
-                <th className="sticky left-[72px] z-30 bg-slate-50 border-r border-slate-200 min-w-[220px] w-[220px] px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="sticky left-[72px] z-30 bg-surface-2 border-r border-line min-w-[220px] w-[220px] px-4 py-3 text-left font-semibold text-fg-2">
                   Name
                 </th>
-                <th className="sticky left-[292px] z-30 bg-slate-50 border-r border-slate-200 min-w-[100px] w-[100px] px-3 py-3 text-left font-semibold text-slate-600">
+                <th className="sticky left-[292px] z-30 bg-surface-2 border-r border-line min-w-[100px] w-[100px] px-3 py-3 text-left font-semibold text-fg-2">
                   Team
                 </th>
                 {assets.map((asset) => (
                   <th
                     key={asset.id}
                     title={`${displayAsset(asset)}${asset.address ? ` (${asset.address})` : ''}`}
-                    className="border-r border-slate-200 align-bottom p-0 font-medium text-slate-600"
+                    className="border-r border-line align-bottom p-0 font-medium text-fg-2"
                     style={{ width: 42, minWidth: 42, height: 190 }}
                   >
                     <div className="h-full flex items-end justify-center pb-2">
@@ -501,13 +501,13 @@ export function UserAccessMatrix() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={assets.length + 1} className="px-4 py-16 text-center text-slate-500">
+                  <td colSpan={assets.length + 1} className="px-4 py-16 text-center text-fg-3">
                     Loading User Access Matrix...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={assets.length + 1} className="px-4 py-16 text-center text-slate-400">
+                  <td colSpan={assets.length + 1} className="px-4 py-16 text-center text-fg-3">
                     No users found.
                   </td>
                 </tr>
@@ -520,24 +520,24 @@ export function UserAccessMatrix() {
                     <tr
                       key={user.id}
                       className={
-                        'border-b border-slate-100 hover:bg-slate-50/70' +
-                        (teamStart ? ' border-t-2 border-t-slate-200' : '')
+                        'border-b border-line/60 hover:bg-surface-2/70' +
+                        (teamStart ? ' border-t-2 border-t-line' : '')
                       }
                     >
                       <td
-                        className="sticky left-0 z-10 bg-white border-r border-slate-200 px-3 py-2.5 text-slate-500 whitespace-nowrap"
+                        className="sticky left-0 z-10 bg-surface border-r border-line px-3 py-2.5 text-fg-3 whitespace-nowrap"
                         title={user.username || ''}
                       >
                         {user.username || '-'}
                       </td>
                       <td
-                        className="sticky left-[72px] z-10 bg-white border-r border-slate-200 px-4 py-2.5 font-medium text-slate-700 whitespace-nowrap"
+                        className="sticky left-[72px] z-10 bg-surface border-r border-line px-4 py-2.5 font-medium text-fg-2 whitespace-nowrap"
                         title={displayUser(user)}
                       >
                         {displayUser(user)}
                       </td>
                       <td
-                        className="sticky left-[292px] z-10 bg-white border-r border-slate-200 px-3 py-2.5 text-slate-500 whitespace-nowrap"
+                        className="sticky left-[292px] z-10 bg-surface border-r border-line px-3 py-2.5 text-fg-3 whitespace-nowrap"
                         title={displayTeam(user)}
                       >
                         {displayTeam(user)}
@@ -548,14 +548,14 @@ export function UserAccessMatrix() {
                       return (
                         <td
                           key={asset.id}
-                          className="border-r border-slate-100 text-center h-9"
+                          className="border-r border-line/60 text-center h-9"
                         >
                           {permission && (
                             <span
                               className={`inline-flex min-w-5 h-5 items-center justify-center rounded text-[10px] font-bold ${
                                 permission === 'W'
-                                  ? 'bg-[#009688]/15 text-[#00796B]'
-                                  : 'bg-slate-100 text-slate-600'
+                                  ? 'bg-brand/15 text-brand-hover'
+                                  : 'bg-surface-3 text-fg-2'
                               }`}
                             >
                               {permission}
@@ -572,8 +572,8 @@ export function UserAccessMatrix() {
           </table>
         </div>
 
-        <div className="border-t border-slate-100 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
-          <span className="text-sm text-slate-600">
+        <div className="border-t border-line/60 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+          <span className="text-sm text-fg-2">
             {filteredUsers.length === 0
               ? 'Total 0'
               : `Showing 1-${filteredUsers.length} of ${filteredUsers.length}`}

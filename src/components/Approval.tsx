@@ -46,8 +46,8 @@ const PAGE_SIZE = 25;
 
 function stateClass(state?: string) {
   return state === 'pending'
-    ? 'bg-yellow-50 text-yellow-600 border-yellow-200'
-    : 'bg-slate-50 text-slate-600 border-slate-200';
+    ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/25'
+    : 'bg-surface-2 text-fg-2 border-line';
 }
 
 function getStateValue(state?: Ticket['state']) {
@@ -178,17 +178,17 @@ export function Approval() {
   const selectedType = getTypeValue(selectedTicket?.type);
 
   return (
-    <div className="flex-1 p-4 sm:p-8 bg-slate-50 overflow-y-auto flex flex-col relative">
-      <div className="flex flex-col gap-4 bg-white rounded-xl shadow-sm border border-slate-200 min-h-[500px]">
-        <div className="flex items-center justify-end p-4 border-b border-slate-100">
+    <div className="flex-1 p-4 sm:p-8 bg-surface-2 overflow-y-auto flex flex-col relative">
+      <div className="flex flex-col gap-4 bg-surface rounded-xl shadow-sm border border-line min-h-[500px]">
+        <div className="flex items-center justify-end p-4 border-b border-line/60">
           <div className="flex items-center gap-3">
             <div className="relative w-64">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Search className="w-4 h-4 text-slate-400" />
+                <Search className="w-4 h-4 text-fg-3" />
               </div>
               <Input
                 placeholder="Search"
-                className="w-full pl-9 pr-8 h-9 text-sm border-slate-200 bg-slate-50 rounded-md"
+                className="w-full pl-9 pr-8 h-9 text-sm border-line bg-surface-2 rounded-md"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -206,14 +206,14 @@ export function Approval() {
         </div>
 
         {error && (
-          <div className="mx-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          <div className="mx-4 rounded-md border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-400">
             {error}
           </div>
         )}
 
         <div className="overflow-x-auto" style={{ minHeight: '300px' }}>
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50/50 text-slate-600 font-medium border-b border-slate-100">
+            <thead className="bg-surface-2/50 text-fg-2 font-medium border-b border-line/60">
               <tr>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">No.</th>
@@ -227,27 +227,27 @@ export function Approval() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-fg-3">
                     Loading approval requests...
                   </td>
                 </tr>
               ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-fg-3">
                     No approval requests found.
                   </td>
                 </tr>
               ) : (
                 pageItems.map((ticket) => (
-                  <tr key={`${getTypeValue(ticket.type)}:${ticket.id}`} className="border-b border-slate-100 hover:bg-slate-50">
+                  <tr key={`${getTypeValue(ticket.type)}:${ticket.id}`} className="border-b border-line/60 hover:bg-surface-2">
                     <td className="px-4 py-3">
-                      <button className="text-[#009688] hover:underline" onClick={() => setSelectedTicket(ticket)}>
+                      <button className="text-brand hover:underline" onClick={() => setSelectedTicket(ticket)}>
                         {ticket.title}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{ticket.serial_num}</td>
-                    <td className="px-4 py-3 text-slate-700">{getTypeLabel(ticket.type)}</td>
-                    <td className="px-4 py-3 text-slate-700">{ticket.applicant || '-'}</td>
+                    <td className="px-4 py-3 text-fg-2">{ticket.serial_num}</td>
+                    <td className="px-4 py-3 text-fg-2">{getTypeLabel(ticket.type)}</td>
+                    <td className="px-4 py-3 text-fg-2">{ticket.applicant || '-'}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex px-2 py-0.5 text-xs font-medium border rounded ${stateClass(
@@ -259,12 +259,12 @@ export function Approval() {
                           : ticket.state?.label || 'Pending approval'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{ticket.date_created || '-'}</td>
+                    <td className="px-4 py-3 text-fg-2">{ticket.date_created || '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1 relative">
                         <Button
                           size="sm"
-                          className="bg-[#009688] hover:bg-[#00796B] text-white h-7 px-3 text-xs rounded"
+                          className="bg-brand hover:bg-brand-hover text-white h-7 px-3 text-xs rounded"
                           onClick={() => setSelectedTicket(ticket)}
                         >
                           Details
@@ -272,24 +272,24 @@ export function Approval() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 w-7 p-0 border-[#009688]/30 text-[#009688] rounded"
+                          className="h-7 w-7 p-0 border-brand/30 text-brand rounded"
                           onClick={() => setActiveMenu(activeMenu === ticket.id ? null : ticket.id)}
                         >
                           <MoreHorizontal className="w-4 h-4" />
                         </Button>
                         {activeMenu === ticket.id && (
-                          <div className="absolute right-0 top-8 w-32 bg-white rounded-md shadow-lg border border-slate-200 z-10 py-1">
+                          <div className="absolute right-0 top-8 w-32 bg-surface rounded-md shadow-lg border border-line z-10 py-1">
                             <button
                               disabled={!!processing}
                               onClick={() => decide(ticket, 'approve')}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-surface-2 disabled:opacity-50"
                             >
                               Accept
                             </button>
                             <button
                               disabled={!!processing}
                               onClick={() => decide(ticket, 'reject')}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-surface-2 disabled:opacity-50"
                             >
                               Reject
                             </button>
@@ -304,7 +304,7 @@ export function Approval() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between p-4 border-t border-slate-100 mt-auto text-sm text-slate-600">
+        <div className="flex items-center justify-between p-4 border-t border-line/60 mt-auto text-sm text-fg-2">
           <div>
             {filtered.length === 0
               ? 'Total 0'
@@ -318,7 +318,7 @@ export function Approval() {
             <button
               disabled={safePage <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white disabled:opacity-50"
+              className="w-8 h-8 flex items-center justify-center border border-line rounded bg-surface disabled:opacity-50"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -328,7 +328,7 @@ export function Approval() {
             <button
               disabled={safePage >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white disabled:opacity-50"
+              className="w-8 h-8 flex items-center justify-center border border-line rounded bg-surface disabled:opacity-50"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -337,18 +337,18 @@ export function Approval() {
       </div>
 
       {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-start justify-between p-6 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm backdrop-blur-sm p-4">
+          <div className="bg-surface rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-start justify-between p-6 border-b border-line/60">
               <div>
-                <h2 className="text-xl font-medium text-slate-800">{selectedTicket.title}</h2>
-                <p className="text-sm text-slate-500 mt-1">
+                <h2 className="text-xl font-medium text-fg">{selectedTicket.title}</h2>
+                <p className="text-sm text-fg-3 mt-1">
                   {selectedTicket.applicant} · {selectedTicket.serial_num}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedTicket(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-fg-3 hover:text-fg-2"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -356,61 +356,61 @@ export function Approval() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm">
               <section>
-                <h3 className="font-semibold text-slate-800 mb-3">Ticket basic info</h3>
+                <h3 className="font-semibold text-fg mb-3">Ticket basic info</h3>
                 <div className="grid grid-cols-[160px_1fr] gap-y-3">
-                  <span className="text-slate-500">Organization</span>
+                  <span className="text-fg-3">Organization</span>
                   <span>{selectedTicket.org_name || selectedTicket.org_id || '-'}</span>
-                  <span className="text-slate-500">Type</span>
+                  <span className="text-fg-3">Type</span>
                   <span>{getTypeLabel(selectedTicket.type)}</span>
-                  <span className="text-slate-500">Applicant</span>
+                  <span className="text-fg-3">Applicant</span>
                   <span>{selectedTicket.applicant || '-'}</span>
-                  <span className="text-slate-500">Comment</span>
+                  <span className="text-fg-3">Comment</span>
                   <span>{selectedTicket.comment || '-'}</span>
                 </div>
               </section>
 
               {selectedType === 'command_confirm' ? (
                 <section className="border-t pt-6">
-                  <h3 className="font-semibold text-slate-800 mb-3">Command review info</h3>
+                  <h3 className="font-semibold text-fg mb-3">Command review info</h3>
                   <div className="grid grid-cols-[160px_1fr] gap-y-3">
-                    <span className="text-slate-500">Run user</span>
+                    <span className="text-fg-3">Run user</span>
                     <span>{getRelationValue(selectedTicket.apply_run_user)}</span>
-                    <span className="text-slate-500">Asset</span>
+                    <span className="text-fg-3">Asset</span>
                     <span>{selectedTicket.apply_run_asset || '-'}</span>
-                    <span className="text-slate-500">Account</span>
+                    <span className="text-fg-3">Account</span>
                     <span>{selectedTicket.apply_run_account || '-'}</span>
-                    <span className="text-slate-500">Command</span>
-                    <pre className="whitespace-pre-wrap break-all rounded bg-slate-50 border border-slate-200 p-3 text-slate-700 font-mono text-xs">
+                    <span className="text-fg-3">Command</span>
+                    <pre className="whitespace-pre-wrap break-all rounded bg-surface-2 border border-line p-3 text-fg-2 font-mono text-xs">
                       {selectedTicket.apply_run_command || '-'}
                     </pre>
-                    <span className="text-slate-500">Session</span>
+                    <span className="text-fg-3">Session</span>
                     <span>{getRelationValue(selectedTicket.apply_from_session)}</span>
-                    <span className="text-slate-500">Command filter</span>
+                    <span className="text-fg-3">Command filter</span>
                     <span>{getRelationValue(selectedTicket.apply_from_cmd_filter_acl)}</span>
                   </div>
                 </section>
               ) : (
                 <section className="border-t pt-6">
-                  <h3 className="font-semibold text-slate-800 mb-3">Ticket applied info</h3>
+                  <h3 className="font-semibold text-fg mb-3">Ticket applied info</h3>
                   <div className="grid grid-cols-[160px_1fr] gap-y-3">
-                    <span className="text-slate-500">Nodes</span>
+                    <span className="text-fg-3">Nodes</span>
                     <span>{(selectedTicket.apply_nodes || []).map((node) => node.name).join(', ') || '-'}</span>
-                    <span className="text-slate-500">Assets</span>
+                    <span className="text-fg-3">Assets</span>
                     <span>{(selectedTicket.apply_assets || []).map((asset) => asset.name).join(', ') || '-'}</span>
-                    <span className="text-slate-500">Accounts</span>
+                    <span className="text-fg-3">Accounts</span>
                     <span>{(selectedTicket.apply_accounts || []).join(', ') || '-'}</span>
-                    <span className="text-slate-500">Actions</span>
+                    <span className="text-fg-3">Actions</span>
                     <span>{(selectedTicket.apply_actions || []).map((action) => action.label).join(', ') || '-'}</span>
-                    <span className="text-slate-500">Start</span>
+                    <span className="text-fg-3">Start</span>
                     <span>{selectedTicket.apply_date_start || '-'}</span>
-                    <span className="text-slate-500">Expired</span>
+                    <span className="text-fg-3">Expired</span>
                     <span>{selectedTicket.apply_date_expired || '-'}</span>
                   </div>
                 </section>
               )}
 
               <section className="border-t pt-6">
-                <h3 className="font-semibold text-slate-800 mb-3">Approval process</h3>
+                <h3 className="font-semibold text-fg mb-3">Approval process</h3>
                 <div className="space-y-2">
                   {(selectedTicket.process_map || []).map((step) => (
                     <div
@@ -418,7 +418,7 @@ export function Approval() {
                       className="flex items-center justify-between border rounded px-3 py-2"
                     >
                       <span>Level {step.approval_level}</span>
-                      <span className="text-slate-600">
+                      <span className="text-fg-2">
                         {step.state === 'approved'
                           ? `Approved by ${step.processor_display || step.processor || 'Unknown'}`
                           : step.state === 'rejected'
@@ -433,7 +433,7 @@ export function Approval() {
               </section>
             </div>
 
-            <div className="flex justify-end gap-2 p-4 border-t border-slate-100">
+            <div className="flex justify-end gap-2 p-4 border-t border-line/60">
               <Button variant="outline" onClick={() => setSelectedTicket(null)}>
                 Close
               </Button>
@@ -446,7 +446,7 @@ export function Approval() {
               </Button>
               <Button
                 disabled={!!processing}
-                className="bg-[#009688] hover:bg-[#00796B] text-white"
+                className="bg-brand hover:bg-brand-hover text-white"
                 onClick={() => decide(selectedTicket, 'approve')}
               >
                 Approve

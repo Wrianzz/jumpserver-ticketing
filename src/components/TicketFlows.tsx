@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -217,42 +218,42 @@ export function TicketFlows() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden flex-1">
+    <div className="bg-surface rounded-2xl border border-line shadow-sm flex flex-col overflow-hidden flex-1">
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
         <div className="p-8 flex flex-col gap-10 overflow-y-auto">
           <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <h3 className="text-base font-semibold text-slate-800">Basic</h3>
-              <ChevronDown className="w-5 h-5 text-slate-400" />
+            <div className="flex items-center justify-between border-b border-line/60 pb-4">
+              <h3 className="text-base font-semibold text-fg">Basic</h3>
+              <ChevronDown className="w-5 h-5 text-fg-3" />
             </div>
 
             <div className="grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-start gap-6 px-4">
-              <label className="text-sm font-medium text-slate-700 flex items-center justify-end gap-1 mt-2">
-                <span className="text-red-500">*</span> Type
+              <label className="text-sm font-medium text-fg-2 flex items-center justify-end gap-1 mt-2">
+                <span className="text-red-400">*</span> Type
               </label>
               <div className="relative max-w-md">
                 <select
                   disabled
-                  className="w-full h-10 px-3 pr-8 rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-500 focus:outline-none cursor-not-allowed appearance-none"
+                  className="w-full h-10 px-3 pr-8 rounded-md border border-line bg-surface-2 text-sm text-fg-3 focus:outline-none cursor-not-allowed appearance-none"
                   value={FLOW_TYPE_LABEL}
                   aria-label="Ticket flow type"
                 >
                   <option value={FLOW_TYPE_LABEL}>{FLOW_TYPE_LABEL}</option>
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-3 pointer-events-none" />
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <h3 className="text-base font-semibold text-slate-800">Approval level</h3>
-              <ChevronDown className="w-5 h-5 text-slate-400" />
+            <div className="flex items-center justify-between border-b border-line/60 pb-4">
+              <h3 className="text-base font-semibold text-fg">Approval level</h3>
+              <ChevronDown className="w-5 h-5 text-fg-3" />
             </div>
 
             <div className="grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-start gap-6 px-4">
-              <label className="text-sm font-medium text-slate-700 flex items-center justify-end gap-1">
-                <span className="text-red-500">*</span> Approve level
+              <label className="text-sm font-medium text-fg-2 flex items-center justify-end gap-1">
+                <span className="text-red-400">*</span> Approve level
               </label>
               <div className="flex items-center gap-6">
                 {[1, 2].map(level => (
@@ -260,12 +261,12 @@ export function TicketFlows() {
                     <div className={cn(
                       'w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 group-active:scale-90',
                       formData.approveLevel === level
-                        ? 'border-[#009688]'
-                        : 'border-slate-300 group-hover:border-[#009688]'
+                        ? 'border-brand'
+                        : 'border-line group-hover:border-brand'
                     )}>
-                      {formData.approveLevel === level && <div className="w-2 h-2 rounded-full bg-[#009688]" />}
+                      {formData.approveLevel === level && <div className="w-2 h-2 rounded-full bg-brand" />}
                     </div>
-                    <span className="text-sm text-slate-700">{level === 1 ? 'One level' : 'Two level'}</span>
+                    <span className="text-sm text-fg-2">{level === 1 ? 'One level' : 'Two level'}</span>
                     <input
                       type="radio"
                       className="hidden"
@@ -276,13 +277,13 @@ export function TicketFlows() {
                 ))}
               </div>
 
-              <label className="text-sm font-medium text-slate-700 flex items-center justify-end gap-1 mt-3">
-                <span className="text-red-500">*</span> Approval process
+              <label className="text-sm font-medium text-fg-2 flex items-center justify-end gap-1 mt-3">
+                <span className="text-red-400">*</span> Approval process
               </label>
 
               <div className="flex flex-col gap-4">
-                <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">1 Level approval</div>
+                <div className="border border-line rounded-lg overflow-hidden bg-surface">
+                  <div className="px-4 py-3 bg-surface-2 border-b border-line text-sm font-medium text-fg-2">1 Level approval</div>
                   <div className="p-5 flex flex-col gap-4">
                     <div className="flex flex-wrap items-center gap-6">
                       {[
@@ -293,11 +294,11 @@ export function TicketFlows() {
                         <label key={`level1-${target}`} className="flex items-center gap-2 cursor-pointer group">
                           <div className={cn(
                             'w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 group-active:scale-90',
-                            formData.level1Target === target ? 'border-[#009688]' : 'border-slate-300 group-hover:border-[#009688]'
+                            formData.level1Target === target ? 'border-brand' : 'border-line group-hover:border-brand'
                           )}>
-                            {formData.level1Target === target && <div className="w-2 h-2 rounded-full bg-[#009688]" />}
+                            {formData.level1Target === target && <div className="w-2 h-2 rounded-full bg-brand" />}
                           </div>
-                          <span className="text-sm text-slate-700">{label}</span>
+                          <span className="text-sm text-fg-2">{label}</span>
                           <input
                             type="radio"
                             className="hidden"
@@ -318,14 +319,14 @@ export function TicketFlows() {
                       />
                     )}
                     {formData.level1Target === 'attribute' && (
-                      <p className="text-xs text-slate-500">Existing attribute rules are preserved. Attribute editing is not exposed here yet.</p>
+                      <p className="text-xs text-fg-3">Existing attribute rules are preserved. Attribute editing is not exposed here yet.</p>
                     )}
                   </div>
                 </div>
 
                 {formData.approveLevel === 2 && (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden bg-white animate-in slide-in-from-top-2 fade-in duration-200">
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">2 Level approval</div>
+                  <div className="border border-line rounded-lg overflow-hidden bg-surface animate-in slide-in-from-top-2 fade-in duration-200">
+                    <div className="px-4 py-3 bg-surface-2 border-b border-line text-sm font-medium text-fg-2">2 Level approval</div>
                     <div className="p-5 flex flex-col gap-4">
                       <div className="flex flex-wrap items-center gap-6">
                         {[
@@ -336,11 +337,11 @@ export function TicketFlows() {
                           <label key={`level2-${target}`} className="flex items-center gap-2 cursor-pointer group">
                             <div className={cn(
                               'w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 group-active:scale-90',
-                              formData.level2Target === target ? 'border-[#009688]' : 'border-slate-300 group-hover:border-[#009688]'
+                              formData.level2Target === target ? 'border-brand' : 'border-line group-hover:border-brand'
                             )}>
-                              {formData.level2Target === target && <div className="w-2 h-2 rounded-full bg-[#009688]" />}
+                              {formData.level2Target === target && <div className="w-2 h-2 rounded-full bg-brand" />}
                             </div>
-                            <span className="text-sm text-slate-700">{label}</span>
+                            <span className="text-sm text-fg-2">{label}</span>
                             <input
                               type="radio"
                               className="hidden"
@@ -361,7 +362,7 @@ export function TicketFlows() {
                         />
                       )}
                       {formData.level2Target === 'attribute' && (
-                        <p className="text-xs text-slate-500">Existing attribute rules are preserved. Attribute editing is not exposed here yet.</p>
+                        <p className="text-xs text-fg-3">Existing attribute rules are preserved. Attribute editing is not exposed here yet.</p>
                       )}
                     </div>
                   </div>
@@ -373,27 +374,27 @@ export function TicketFlows() {
           {(error || success) && (
             <div className={cn(
               'mx-4 rounded-md border px-4 py-3 text-sm',
-              error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              error ? 'border-red-500/25 bg-red-500/10 text-red-400' : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400'
             )}>
               {error || success}
             </div>
           )}
         </div>
 
-        <div className="mt-auto bg-slate-50 border-t border-slate-200 p-6 flex justify-end items-center shrink-0">
+        <div className="mt-auto bg-surface-2 border-t border-line p-6 flex justify-end items-center shrink-0">
           <div className="flex gap-3 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={handleReset}
               disabled={loading || loadingFlow}
-              className="px-6 py-2.5 rounded-lg text-sm font-semibold border border-slate-300 text-slate-600 bg-white hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-px active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-lg text-sm font-semibold border border-line text-fg-2 bg-surface hover:bg-surface-2 hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-px active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
               Reset
             </button>
             <button
               type="submit"
               disabled={loading || loadingFlow || !flowId}
-              className="px-8 py-2.5 rounded-lg text-sm font-semibold bg-[#009688] text-white hover:bg-[#00796B] hover:shadow-lg hover:shadow-[#009688]/30 transition-all duration-200 cursor-pointer hover:-translate-y-px active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none"
+              className="px-8 py-2.5 rounded-lg text-sm font-semibold bg-brand text-[#04110f] hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30 transition-all duration-200 cursor-pointer hover:-translate-y-px active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none"
             >
               {loading || loadingFlow ? (
                 <>
