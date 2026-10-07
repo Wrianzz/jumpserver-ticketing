@@ -616,6 +616,61 @@ async function resolvePortalRole(req: Request, authenticatedUser?: UserSummary):
   return isApprover ? 'approver' : 'user';
 }
 
+type AuthProxyBody = { username?: unknown; password?: unknown };
+
+function setUpstreamCookies(res: Response, headers: Record<string, any>) {
+  const cookies = headers['set-cookie'];
+  if (Array.isArray(cookies) && cookies.length > 0) res.setHeader('set-cookie', cookies);
+}
+
+async function proxyJumpServerAuth(req: Request, res: Response) {
+  try {
+    if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
+    const body = req.body as AuthProxyBody;
+    const username = typeof body?.username === 'string' ? body.username.trim() : '';
+    const password = typeof body?.password === 'string' ? body.password : '';
+    if (!username || !password) return res.status(400).json({ success: false, message: 'Username and password are required' });
+    const response = await axios.post(
+      JUMPSERVER_URL + '/api/v1/authentication/auth/',
+      { username, password },
+      { headers: { 'Content-Type': 'application/json', ...(req.headers.cookie ? { Cookie: req.headers.cookie } : {}) }, timeout: 15000 },
+    );
+    setUpstreamCookies(res, response.headers as Record<string, any>);
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      setUpstreamCookies(res, axiosError.response.headers as Record<string, any>);
+      return res.status(axiosError.response.status).json(axiosError.response.data);
+    }
+    console.error('JumpServer authentication proxy error:', error);
+    return res.status(502).json({ success: false, message: 'Failed to connect to JumpServer authentication service' });
+  }
+}
+
+async function proxyJumpServerMfaChallenge(req: Request, res: Response) {
+  try {
+    if (!JUMPSERVER_URL) return res.status(500).json({ success: false, message: 'JUMPSERVER_URL is not configured' });
+    const response = await axios.post(
+      JUMPSERVER_URL + '/api/v1/authentication/mfa/challenge/',
+      req.body,
+      { headers: { 'Content-Type': 'application/json', ...(req.headers.cookie ? { Cookie: req.headers.cookie } : {}), ...(req.headers['x-csrftoken'] ? { 'X-CSRFToken': req.headers['x-csrftoken'] } : {}) }, timeout: 15000 },
+    );
+    setUpstreamCookies(res, response.headers as Record<string, any>);
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response) {
+      setUpstreamCookies(res, axiosError.response.headers as Record<string, any>);
+      return res.status(axiosError.response.status).json(axiosError.response.data);
+    }
+    console.error('JumpServer MFA proxy error:', error);
+    return res.status(502).json({ success: false, message: 'Failed to connect to JumpServer MFA service' });
+  }
+}
+
+app.post('/portal-api/auth/login', proxyJumpServerAuth);
+app.post('/portal-api/auth/mfa/challenge', proxyJumpServerMfaChallenge);
 app.get('/portal-api/access', requireAuth, async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
