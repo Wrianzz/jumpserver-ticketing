@@ -9,6 +9,7 @@ const JUMPSERVER_URL = (process.env.JUMPSERVER_URL || '').replace(/\/$/, '');
 const JUMPSERVER_ORG_ID = process.env.JUMPSERVER_ORG_ID || '00000000-0000-0000-0000-000000000002';
 const JUMPSERVER_TIMEZONE_OFFSET = process.env.JUMPSERVER_TIMEZONE_OFFSET || '+0700';
 const JUMPSERVER_SERVICE_TOKEN = process.env.JUMPSERVER_SERVICE_TOKEN || '';
+const JUMPSERVER_APPLY_ASSET_FLOW_ID = process.env.JUMPSERVER_APPLY_ASSET_FLOW_ID || '';
 const JUMPSERVER_TLS_VERIFY = process.env.JUMPSERVER_TLS_VERIFY !== 'false';
 const N8N_UAM_WEBHOOK_URL = process.env.N8N_UAM_WEBHOOK_URL || '';
 const N8N_UAM_WEBHOOK_TOKEN = process.env.N8N_UAM_WEBHOOK_TOKEN || '';
@@ -338,9 +339,12 @@ app.post('/portal-api/tickets', requireAuth, async (req: Request<{}, {}, TicketR
       return res.status(400).json({ success: false, message: '@SPEC must be followed by at least one specified account' });
     }
 
+    const flowId = await resolveApplyAssetFlowId();
+
     const jumpServerPayload = {
       title: title.trim(),
       org_id: org_id || JUMPSERVER_ORG_ID,
+      flow_id: flowId,
       apply_nodes,
       apply_assets,
       apply_accounts,
@@ -402,6 +406,35 @@ async function fetchTicketFlows(): Promise<any[]> {
     timeout: 15000,
   });
   return extractResults(response.data);
+}
+
+async function resolveApplyAssetFlowId(): Promise<string> {
+  if (JUMPSERVER_APPLY_ASSET_FLOW_ID) {
+    return JUMPSERVER_APPLY_ASSET_FLOW_ID;
+  }
+
+  const flows = await fetchTicketFlows();
+  const applyAssetFlows = flows.filter((flow: any) => {
+    const type = typeof flow?.type === 'string' ? flow.type : flow?.type?.value;
+    return type === 'apply_asset';
+  });
+
+  if (applyAssetFlows.length === 0) {
+    throw new Error('No apply_asset Ticket Flow found in JumpServer');
+  }
+
+  if (applyAssetFlows.length > 1) {
+    throw new Error(
+      'Multiple apply_asset Ticket Flows found. Configure JUMPSERVER_APPLY_ASSET_FLOW_ID to select the intended flow.',
+    );
+  }
+
+  const flowId = applyAssetFlows[0]?.id;
+  if (typeof flowId !== 'string' || !flowId.trim()) {
+    throw new Error('The selected apply_asset Ticket Flow does not contain an id');
+  }
+
+  return flowId.trim();
 }
 
 type JumpServerUser = {
@@ -787,10 +820,19 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
       });
     }
 
+    const flowId = access.ticket?.flow?.id;
+    if (typeof flowId !== 'string' || !flowId.trim()) {
+      return res.status(502).json({
+        success: false,
+        message: 'JumpServer ticket does not contain a valid flow ID',
+      });
+    }
+
     const upstreamPayload =
       type === 'apply_asset'
         ? {
             type: 'apply_asset',
+            flow_id: flowId,
             apply_nodes: Array.isArray(req.body?.apply_nodes) ? req.body.apply_nodes : [],
             apply_assets: Array.isArray(req.body?.apply_assets) ? req.body.apply_assets : [],
             apply_accounts: Array.isArray(req.body?.apply_accounts) ? req.body.apply_accounts : [],
@@ -805,6 +847,7 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
           }
         : {
             type: 'command_confirm',
+            flow_id: flowId,
             org_id: orgId,
           };
 
