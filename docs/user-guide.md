@@ -79,7 +79,8 @@ The following should be prepared in JumpServer before users start submitting req
 7. Approvers/reviewers are assigned to the appropriate JumpServer configuration when approval is required.
 8. The portal backend is configured with a valid JUMPSERVER_URL.
 9. JUMPSERVER_ORG_ID is set to the organization used by the portal.
-10. JUMPSERVER_SERVICE_TOKEN is configured when the portal needs to read Ticket Flow configuration for role resolution.
+10. JUMPSERVER_SERVICE_TOKEN is configured when the portal needs to read Ticket Flow configuration for role resolution or automatic flow selection.
+11. JUMPSERVER_APPLY_ASSET_FLOW_ID may be set to explicitly select the apply_asset Ticket Flow used for new tickets. If it is empty, the portal auto-selects the flow only when exactly one apply_asset flow exists.
 
 For an internal JumpServer installation using a self-signed or expired certificate, the backend can be configured with:
 
@@ -749,9 +750,10 @@ Check the browser Network tab and inspect:
 - Request Payload
 - Response
 
-For an apply_asset approval, the portal sends the ticket type and the relevant ticket fields, including:
+For an apply_asset approval, the portal sends the ticket type, the ticket's existing flow ID, and the relevant ticket fields, including:
 
 - type
+- flow_id
 - org_id
 - apply_nodes
 - apply_assets
