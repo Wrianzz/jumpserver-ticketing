@@ -46,7 +46,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
   const authenticate = async () => {
     authDebug('auth request', { username });
     try {
-      const response = await apiClient.post('/portal-api/auth/login', { username, password });
+      const response = await apiClient.post('/api/v1/authentication/auth/', { username, password });
       authDebug('auth response', { status: response.status, hasToken: !!extractAuthData(response.data).token, tokenLength: extractAuthData(response.data).token?.length, hasUser: !!extractAuthData(response.data).user, responseError: response.data?.error, responseMsg: response.data?.msg });
       return response;
     } catch (error: any) {
@@ -100,7 +100,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
     try {
       authDebug('MFA challenge request', { username, otpLength: otp.length, preExistingToken: !!sessionStorage.getItem('jumpserver_token') });
-      const mfaResponse = await apiClient.post('/portal-api/auth/mfa/challenge', { type: 'otp', code: otp });
+      const mfaResponse = await apiClient.post('/api/v1/authentication/mfa/challenge/', { type: 'otp', code: otp });
       authDebug('MFA challenge response', { status: mfaResponse.status, responseError: mfaResponse.data?.error, responseMsg: mfaResponse.data?.msg });
       const authResponse = await authenticate();
       const { token, user } = extractAuthData(authResponse.data);
