@@ -3,6 +3,8 @@ import axios from 'axios';
 
 // Create an Axios instance
 const apiClient = axios.create({
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
   headers: {
     'Content-Type': 'application/json',
   },
