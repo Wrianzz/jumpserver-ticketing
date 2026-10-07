@@ -832,6 +832,7 @@ async function processApproval(req: Request, res: Response, action: 'approve' | 
       type === 'apply_asset'
         ? {
             type: 'apply_asset',
+            flow_id: flowId,
             apply_nodes: Array.isArray(req.body?.apply_nodes) ? req.body.apply_nodes : [],
             apply_assets: Array.isArray(req.body?.apply_assets) ? req.body.apply_assets : [],
             apply_accounts: Array.isArray(req.body?.apply_accounts) ? req.body.apply_accounts : [],
